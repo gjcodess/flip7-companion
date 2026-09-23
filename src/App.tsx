@@ -137,7 +137,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         </header>
 
         <section className="match-strip">
-          <div><span>ROUND</span><b>03</b></div>
+          <div><span>ROUND</span><b>{String(liveRound?.number ?? 1).padStart(2, '0')}</b></div>
           <div className="target"><span>FIRST TO</span><b>{targetScore}</b></div>
           <div><span>YOU</span><b>{score}</b></div>
         </section>
