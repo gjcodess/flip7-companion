@@ -125,6 +125,11 @@ export async function recordRoundCard(roomId: string, cardCode: string, targetUs
   return data as { needs_bust_confirmation: boolean; card_code?: string }
 }
 
+export async function voidRoundCard(roomId: string, cardId: string) {
+  const { error } = await client().rpc('void_round_card', { p_room_id: roomId, p_card_id: cardId, p_client_event_id: crypto.randomUUID() })
+  if (error) throw new Error(error.message)
+}
+
 export async function stayInRound(roomId: string) {
   const { error } = await client().rpc('stay_in_round', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
   if (error) throw new Error(error.message)

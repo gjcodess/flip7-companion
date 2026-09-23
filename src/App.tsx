@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
-import { approveRoomMember, confirmRoundResult, createPasswordAccount, createRoom, currentUser, getLiveRound, getRoomSnapshot, heartbeatRoom, leaveRoom as leaveRoomRpc, recordRoundCard, requestRoomJoin, signInAsGuest, signInWithPassword, startMatch, stayInRound, type LiveRound, type RoomSnapshot } from './lib/room'
+import { approveRoomMember, confirmRoundResult, createPasswordAccount, createRoom, currentUser, getLiveRound, getRoomSnapshot, heartbeatRoom, leaveRoom as leaveRoomRpc, recordRoundCard, requestRoomJoin, signInAsGuest, signInWithPassword, startMatch, stayInRound, voidRoundCard, type LiveRound, type RoomSnapshot } from './lib/room'
 
 type Player = {
   id: string
@@ -74,8 +74,12 @@ function cardCode(card: Card) {
 }
 
 function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; roomId?: string; user?: User; onLeave?: () => void }) {
-  const [table, setTable] = useState<Card[]>(demoTable)
+  const [table, setTable] = useState<Card[]>(roomId ? [] : demoTable)
+  const [tableCardIds, setTableCardIds] = useState<string[]>([])
+  const cardOrderRef = useRef<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
+  const [editingCardIndex, setEditingCardIndex] = useState<number | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showHomePrompt, setShowHomePrompt] = useState(false)
   const [openPanel, setOpenPanel] = useState<'players' | 'rules' | null>(null)
@@ -84,36 +88,79 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [liveRound, setLiveRound] = useState<LiveRound | null>(null)
   const [pendingAction, setPendingAction] = useState<Card | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const refreshLiveRound = async () => {
+  const refreshLiveRound = async (preserveCardIndex?: number) => {
     if (!roomId) return
-    try { const next = await getLiveRound(roomId); setLiveRound(next); const mine = next?.players.find((player) => player.user_id === user?.id); const cards = next?.cards.filter((card) => card.round_player_id === mine?.id).map((card) => cardFromCode(card.card_code)).filter((card): card is Card => Boolean(card)); if (cards) setTable(cards) } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) }
+    try {
+      const next = await getLiveRound(roomId)
+      setLiveRound(next)
+      const mine = next?.players.find((player) => player.user_id === user?.id)
+      const mineCards = next?.cards.filter((card) => card.round_player_id === mine?.id) ?? []
+      const previousOrder = cardOrderRef.current
+      const orderedMineCards = previousOrder.length
+        ? [...mineCards].sort((a, b) => (previousOrder.indexOf(a.id) === -1 ? Number.MAX_SAFE_INTEGER : previousOrder.indexOf(a.id)) - (previousOrder.indexOf(b.id) === -1 ? Number.MAX_SAFE_INTEGER : previousOrder.indexOf(b.id)))
+        : mineCards
+      const cards = orderedMineCards.map((card) => cardFromCode(card.card_code)).filter((card): card is Card => Boolean(card))
+      const cardIds = orderedMineCards.map((card) => card.id)
+      if (preserveCardIndex !== undefined && preserveCardIndex < cards.length) {
+        const replacementCard = cards.pop()
+        const replacementId = cardIds.pop()
+        if (replacementCard && replacementId) { cards.splice(preserveCardIndex, 0, replacementCard); cardIds.splice(preserveCardIndex, 0, replacementId) }
+      }
+      cardOrderRef.current = cardIds
+      setTable(cards)
+      setTableCardIds(cardIds)
+    } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) }
   }
   useEffect(() => { if (!roomId) return; void refreshLiveRound(); const timer = window.setInterval(() => { void refreshLiveRound(); void heartbeatRoom(roomId) }, 15000); return () => window.clearInterval(timer) }, [roomId, user?.id])
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
   const score = mine?.round_score ?? localScore
   const visiblePlayers: Player[] = liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id).length })) : demoPlayers
+  const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
+  const cardRows = Array.from({ length: Math.ceil(table.length / 4) }, (_, rowIndex) => table.slice(rowIndex * 4, rowIndex * 4 + 4))
 
   const addCard = async (card: Card, targetUserId?: string, confirmBust = false) => {
     if (roomId) {
       if (card.kind === 'action' && !targetUserId) { setPendingAction(card); setPickerOpen(false); return }
       setSubmitting(true)
       try {
+        const existingId = editingCardIndex === null ? null : tableCardIds[editingCardIndex]
+        if (editingCardIndex !== null && !existingId) throw new Error('This card is still loading. Try again in a moment.')
         const result = await recordRoundCard(roomId, cardCode(card), targetUserId, confirmBust)
         if (result.needs_bust_confirmation) { setToast(`A second ${card.label} will bust you. Choose it again and confirm.`); setPickerOpen(false); return }
-        await refreshLiveRound(); setToast(`${card.label} recorded`)
+        if (existingId) await voidRoundCard(roomId, existingId)
+        await refreshLiveRound(editingCardIndex ?? undefined); setToast(editingCardIndex === null ? `${card.label} recorded` : `${card.label} updated`)
       } catch (caught) { setToast(errorMessage(caught, 'Could not record that card.')) } finally { setSubmitting(false); setPickerOpen(false); setPendingAction(null) }
+      setEditingCardIndex(null)
       return
     }
-    const duplicate = card.kind === 'number' && table.some((onTable) => onTable.id === card.id)
+    const duplicate = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
     if (duplicate) {
       setToast(`A second ${card.label} would bust you. Bust confirmation will be added with live game actions.`)
       setPickerOpen(false)
       return
     }
-    setTable((current) => [...current, card])
+    setTable((current) => editingCardIndex === null ? [...current, card] : current.map((entry, index) => index === editingCardIndex ? card : entry))
     setPickerOpen(false)
-    setToast(`${card.label} added to your table`)
+    setToast(editingCardIndex === null ? `${card.label} added to your table` : `${card.label} updated`)
+    setEditingCardIndex(null)
+  }
+
+  const removeCard = async (index: number) => {
+    if (!canEditCards) return
+    setSelectedCardIndex(null)
+    setSubmitting(true)
+    try {
+      if (roomId) {
+        const cardId = tableCardIds[index]
+        if (!cardId) throw new Error('This card is still loading. Try again in a moment.')
+        await voidRoundCard(roomId, cardId)
+        await refreshLiveRound()
+      } else {
+        setTable((current) => current.filter((_, cardIndex) => cardIndex !== index))
+      }
+      setToast('Card removed from your table')
+    } catch (caught) { setToast(errorMessage(caught, 'Could not remove that card.')) } finally { setSubmitting(false) }
   }
 
   const undo = () => {
@@ -134,7 +181,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         <header className="topbar">
           <button className="brand-button" aria-label="Go to home" onClick={() => setShowHomePrompt(true)}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button>
           <RoomCode code={roomCode} showCopy={false} />
-          <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>G</button>
+          <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>{String(user?.user_metadata.display_name || 'Player').trim().charAt(0).toUpperCase() || 'P'}</button>
           {showMenu && <div className="room-menu"><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
 
@@ -159,19 +206,27 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b></div>
           <div className="card-table">
             <AnimatePresence initial={false}>
-              {table.map((card, index) => (
-                <motion.button
-                  className={`table-card ${card.kind}`}
-                  key={`${card.id}-${index}`}
-                  initial={{ opacity: 0, y: -32, rotate: index % 2 ? 3 : -3 }}
-                  animate={{ opacity: 1, y: 0, rotate: index % 2 ? 2 : -2 }}
-                  exit={{ opacity: 0, y: -28 }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                  onClick={() => setToast(`${card.label} is on your table`)}
-                >
-                  <CardArtwork card={card} />
-                </motion.button>
-              ))}
+              <div className="card-rows">
+                {cardRows.map((row, rowIndex) => <div className="card-row" key={`card-row-${rowIndex}`}>
+                  {row.map((card, rowCardIndex) => {
+                    const index = rowIndex * 4 + rowCardIndex
+                    return <motion.button
+                      className={`table-card ${card.kind}`}
+                      key={`${card.id}-${index}`}
+                      initial={{ opacity: 0, y: -32, rotate: rowCardIndex % 2 ? 3 : -3 }}
+                      animate={{ opacity: 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
+                      exit={{ opacity: 0, y: -28 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                      onClick={() => {
+                        if (!canEditCards) { setToast(`${card.label} is locked after you stay.`); return }
+                        setSelectedCardIndex(index)
+                      }}
+                    >
+                      <CardArtwork card={card} />
+                    </motion.button>
+                  })}
+                </div>)}
+              </div>
               <button className="add-card-card" onClick={() => setPickerOpen(true)} aria-label="Record a physical card"><Plus size={30} /></button>
             </AnimatePresence>
           </div>
@@ -188,8 +243,9 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
 
       <AnimatePresence>
+        {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setSelectedCardIndex(null)}><motion.section className="card-picker card-actions-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>YOUR TABLE</span><h2>{table[selectedCardIndex].label}</h2></div><button className="close-button" aria-label="Close card actions" title="Close" onClick={() => setSelectedCardIndex(null)}><X size={19} /></button></div><p>Edit this card or remove it while your round is still active.</p><div className="card-action-buttons"><button className="secondary-action" onClick={() => { setEditingCardIndex(selectedCardIndex); setSelectedCardIndex(null); setPickerOpen(true) }}>Edit card</button><button className="danger-action" onClick={() => void removeCard(selectedCardIndex)}>Remove card</button></div></motion.section></motion.div>}
         {pickerOpen && (
-          <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPickerOpen(false)}>
+          <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setPickerOpen(false)}>
             <motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} transition={{ type: 'spring', damping: 26 }} onClick={(event) => event.stopPropagation()}>
               <div className="picker-heading"><div><span>PHYSICAL CARD</span><h2>What did you flip?</h2></div><button className="close-button" aria-label="Close card picker" title="Close" onClick={() => setPickerOpen(false)}><X size={19} /></button></div>
               <p>Select the card in front of you. The app never draws a card for you.</p>
