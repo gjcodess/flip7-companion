@@ -92,6 +92,13 @@ button { line-height: 1; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 .button-content { display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
 .brand-logo { display: block; width: 116px; height: 48px; object-fit: contain; mix-blend-mode: screen; }
+.brand-button { display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.brand-button:hover { filter: brightness(1.12); }
+.home-prompt { padding-bottom: 22px; }
+.home-prompt-copy { margin: 16px 0; font-size: 13px; line-height: 1.45; }
+.home-prompt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.home-prompt-actions button { min-height: 44px; }
+.home-prompt-actions .secondary-action { border: 3px solid #132d67; background: #fffdf5; color: #132d67; font-weight: 900; }
 .landing-page { min-height: 100vh; overflow: hidden; color: #fff7da; background: #101d4d; }
 .landing-nav { position: sticky; top: 0; z-index: 20; width: min(1180px, calc(100% - 40px)); min-height: 78px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; background: rgba(16,29,77,.76); border-bottom: 1px solid rgba(255,247,218,.12); box-shadow: 0 8px 24px rgba(0,0,0,.12); backdrop-filter: blur(12px); }
 .landing-logo { width: 150px; height: 54px; object-fit: contain; mix-blend-mode: screen; }

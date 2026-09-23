@@ -77,6 +77,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [table, setTable] = useState<Card[]>(demoTable)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showHomePrompt, setShowHomePrompt] = useState(false)
   const [openPanel, setOpenPanel] = useState<'players' | 'rules' | null>(null)
   const [toast, setToast] = useState('')
   const [isStaying, setIsStaying] = useState(false)
@@ -131,7 +132,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <aside className="desktop-marquee left"><div>FLIP<br />7</div></aside>
       <main className="game-shell">
         <header className="topbar">
-          <img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" />
+          <button className="brand-button" aria-label="Go to home" onClick={() => setShowHomePrompt(true)}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button>
           <RoomCode code={roomCode} showCopy={false} />
           <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>G</button>
           {showMenu && <div className="room-menu"><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
@@ -200,6 +201,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         )}
       </AnimatePresence>
         <AnimatePresence>{toast && <motion.div className="toast" initial={{ y: 35, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 35, opacity: 0 }} onAnimationComplete={() => window.setTimeout(() => setToast(''), 2600)}>{toast}</motion.div>}</AnimatePresence>
+        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload() }} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
@@ -234,6 +236,10 @@ function LandingScreen({ onStart }: { onStart: () => void }) {
   </div>
 }
 
+function HomePrompt({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  return <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>LEAVE THIS VIEW</span><h2>Go to home?</h2></div><button className="close-button" aria-label="Close" title="Close" onClick={onCancel}><X size={19} /></button></div><p className="home-prompt-copy">You can return to the room from the home screen at any time.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={onCancel}>Stay here</button><button className="primary-wide" onClick={onConfirm}><span className="button-content">Go to home</span></button></div></motion.section></motion.div>
+}
+
 function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -241,6 +247,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
   const [mode, setMode] = useState<'guest' | 'sign-in' | 'sign-up'>('guest')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [showHomePrompt, setShowHomePrompt] = useState(false)
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -264,7 +271,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
   return <div className="app-shell lobby-shell">
     <aside className="desktop-marquee left"><div>FLIP<br />7</div></aside>
     <main className="game-shell lobby-main">
-      <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><span className="topbar-caption">PHYSICAL CARD COMPANION</span></header>
+      <header className="topbar"><button className="brand-button" aria-label="Go to landing page" onClick={() => setShowHomePrompt(true)}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><span className="topbar-caption">PHYSICAL CARD COMPANION</span></header>
       <section className="auth-hero"><span className="eyebrow">CARNIVAL TABLE</span><h1>Track the cards<br />you actually flip.</h1><p>Use your physical deck. Each player records their own cards, then the table settles the round together.</p></section>
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-tabs">
@@ -280,6 +287,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
       <footer className="lobby-footer">The app records your physical cards. It never deals for you.</footer>
     </main>
     <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
+    <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => window.location.reload()} />}</AnimatePresence>
   </div>
 }
 
