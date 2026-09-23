@@ -45,7 +45,7 @@ function errorMessage(caught: unknown, fallback: string) {
   return fallback
 }
 
-function RoomCode({ code, showCopy = true }: { code: string; showCopy?: boolean }) {
+function RoomCode({ code, showCopy = true, label = 'ROOM' }: { code: string; showCopy?: boolean; label?: string }) {
   const [copied, setCopied] = useState(false)
   const copyCode = async () => {
     try {
@@ -67,13 +67,17 @@ function RoomCode({ code, showCopy = true }: { code: string; showCopy?: boolean 
       // Clipboard access can be unavailable in an insecure local-network context.
     }
   }
-  return <div className="room-code"><span>ROOM</span><b>{code}</b>{showCopy && <button className="copy-room-code" aria-label={copied ? 'Room code copied' : 'Copy room code'} title={copied ? 'Copied' : 'Copy room code'} onClick={() => void copyCode()}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}</div>
+  return <div className="room-code"><span>{label}</span><b>{code}</b>{showCopy && <button className="copy-room-code" aria-label={copied ? 'Room code copied' : 'Copy room code'} title={copied ? 'Copied' : 'Copy room code'} onClick={() => void copyCode()}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}</div>
 }
 
 function cardCode(card: Card) {
   if (card.id.startsWith('number-')) return `number:${card.id.slice(7)}`
   const codes: Record<string, string> = { 'modifier-plus-2': 'modifier:plus2', 'modifier-plus-4': 'modifier:plus4', 'modifier-plus-6': 'modifier:plus6', 'modifier-plus-8': 'modifier:plus8', 'modifier-plus-10': 'modifier:plus10', 'modifier-x2': 'modifier:x2', 'action-second-chance': 'action:second_chance', 'action-freeze': 'action:freeze', 'action-flip-three': 'action:flip_three' }
   return codes[card.id]
+}
+
+function pointLabel(value: number) {
+  return Math.abs(value) <= 1 ? 'pt' : 'pts'
 }
 
 function roomCodeFromPath(pathname: string) {
@@ -162,7 +166,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const score = mine?.round_score ?? localScore
   const flipSevenBonus = mine?.flip_seven_bonus ?? (numberCardCount >= 7 ? 15 : 0)
   const headerScore = mine?.total_score ?? score
-  const visiblePlayers: Player[] = liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : demoPlayers
+  const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
   const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
   const organizeCards = () => {
@@ -362,9 +366,8 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <main className="game-shell">
         <header className="topbar">
           <button className="brand-button" aria-label="Go to home" onClick={() => setShowHomePrompt(true)}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button>
-          <RoomCode code={roomCode} showCopy={false} />
           <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>{String(user?.user_metadata.display_name || 'Player').trim().charAt(0).toUpperCase() || 'P'}</button>
-          {showMenu && <div className="room-menu"><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
+          {showMenu && <div className="room-menu"><div className="room-menu-title" /><RoomCode code={roomCode} label="ROOM CODE" /><div className="room-menu-divider" /><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
 
         <section className="match-strip">
@@ -377,8 +380,8 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           {visiblePlayers.map((player) => (
             <article className={`opponent ${player.state}`} key={player.id}>
               <div className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</div>
-              <div className="opponent-copy"><b>{player.name}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} pts` : player.state === 'stayed' ? `Stayed · ${player.roundScore} pts` : 'Busted'}</span></div>
-          <strong><small>Total pts:</small> {player.score}</strong>
+          <div className="opponent-copy"><b>{player.name}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</span></div>
+          <strong><small>Total pts:</small> <b>{player.score}</b></strong>
             </article>
           ))}
         </section>
@@ -386,6 +389,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         <section className="table-area">
           <div className="section-kicker"><Crown size={16} /> MY TABLE <button className="organize-button" onClick={organizeCards} disabled={table.length < 2} title="Organize cards"><ListOrdered size={14} /> Organize</button></div>
           <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b>{flipSevenBonus > 0 && <small className="flip-seven-bonus">+15</small>}</div>
+          <AnimatePresence>{submitting && <motion.div className="card-operation-status" initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .9 }} role="status"><LoaderCircle className="spin" size={16} /> Updating table…</motion.div>}</AnimatePresence>
           <div className="card-table">
             <AnimatePresence initial={false}>
               <div className="card-rows">
@@ -443,12 +447,12 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           </motion.div>
         )}
       </AnimatePresence>
-        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload() }} />}</AnimatePresence>
+        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.location.assign('/') }} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
               <div className="picker-heading"><div><span>{openPanel === 'players' ? 'AT THIS TABLE' : 'HOW TO PLAY'}</span><h2>{openPanel === 'players' ? 'Players' : 'Rules'}</h2></div><div className="panel-heading-actions">{openPanel === 'players' && <b className="panel-count">{visiblePlayers.length + 1} players</b>}<button className="close-button" aria-label="Close panel" title="Close" onClick={() => setOpenPanel(null)}><X size={19} /></button></div></div>
-              {openPanel === 'players' ? <div className="info-list"><div className="info-player current-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'M')[0]}</span><div><b>{user?.user_metadata.display_name || 'Player'} (me) {hostUserId === user?.id && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>My score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name} {player.isHost && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} pts` : player.state === 'stayed' ? `Stayed · ${player.roundScore} pts` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy">
+              {openPanel === 'players' ? <div className="info-list"><div className="info-player current-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'M')[0]}</span><div><b>{user?.user_metadata.display_name || 'Player'} (me) {hostUserId === user?.id && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>My score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name} {player.isHost && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy">
                 <section><h3>Objective</h3><p>Be the first player to reach 200 points. At the end of that round, the player with the most points wins.</p></section>
                 <section><h3>On your turn</h3><p>Choose <b>Hit</b> to take another card or <b>Stay</b> to stop and bank your points. Each player records the physical cards they receive.</p></section>
                 <section><h3>Number cards</h3><p>Number cards score their face value. You cannot have the same number twice: drawing a duplicate makes you bust and score zero for the round.</p></section>
@@ -529,7 +533,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
       <footer className="lobby-footer">The app records your physical cards. It never deals for you.</footer>
     </main>
     <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
-    <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => window.location.reload()} />}</AnimatePresence>
+    <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => window.location.assign('/')} />}</AnimatePresence>
   </div>
 }
 
@@ -537,6 +541,7 @@ function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: string) =
   const [name, setName] = useState(String(user.user_metadata.display_name || 'Player'))
   const [target, setTarget] = useState(200)
   const [joinCode, setJoinCode] = useState('')
+  const [homeMode, setHomeMode] = useState<'join' | 'host'>('join')
   const [busy, setBusy] = useState<'create' | 'join' | null>(null)
   const [error, setError] = useState('')
 
@@ -550,14 +555,25 @@ function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: string) =
   }
 
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
-    <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> {name}</button></header>
+    <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> Exit</button></header>
     <section className="auth-hero compact"><span className="eyebrow">WELCOME TO THE TABLE</span><h1>Ready when the deck is.</h1><p>Create a room for your group, or enter a code from the host.</p></section>
+    <section className="home-mode-switch" aria-label="Choose how to enter a game"><button className={homeMode === 'join' ? 'selected' : ''} onClick={() => setHomeMode('join')}><Users size={16} /> Join a game</button><button className={homeMode === 'host' ? 'selected' : ''} onClick={() => setHomeMode('host')}><Play size={16} /> Host a game</button></section>
     <section className="lobby-grid">
-      <article className="lobby-card"><span className="eyebrow">HOST A GAME</span><h2>Start a table</h2><label>Your display name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} /></label><span className="field-label">TARGET SCORE</span><div className="target-options">{[100, 200, 300].map((score) => <button key={score} className={target === score ? 'selected' : ''} onClick={() => setTarget(score)}>{score}</button>)}</div><label>Custom target (50–500)<input type="number" min="50" max="500" value={target} onChange={(e) => setTarget(Math.max(50, Math.min(500, Number(e.target.value))))} /></label><button className="primary-wide" disabled={busy !== null} onClick={create}>{busy === 'create' ? <LoaderCircle className="spin" /> : <Play />} Create room</button></article>
-      <article className="lobby-card join-card"><span className="eyebrow">JOIN A GAME</span><h2>Have a room code?</h2><p>The host approves every player before the match begins.</p><label>Room code<input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} maxLength={6} placeholder="ABC123" /></label><button className="secondary-wide" disabled={busy !== null || joinCode.length !== 6} onClick={join}>{busy === 'join' ? <LoaderCircle className="spin" /> : <Users />} Request a seat</button></article>
+      {homeMode === 'join' ? <article className="lobby-card join-card"><span className="eyebrow">JOIN A GAME</span><h2>Have a room code?</h2><p>The host approves every player before the match begins.</p><label>Your display name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} /></label><label>Room code<input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} maxLength={6} placeholder="ABC123" /></label><button className="secondary-wide" disabled={busy !== null || joinCode.length !== 6} onClick={join}>{busy === 'join' ? <LoaderCircle className="spin" /> : <Users />} Request a seat</button></article> : <article className="lobby-card"><span className="eyebrow">HOST A GAME</span><h2>Start a table</h2><label>Your display name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} /></label><span className="field-label">TARGET SCORE</span><div className="target-options">{[100, 200, 300].map((score) => <button key={score} className={target === score ? 'selected' : ''} onClick={() => setTarget(score)}>{score}</button>)}</div><label>Custom target (50–500)<input type="number" min="50" max="500" value={target} onChange={(e) => setTarget(Math.max(50, Math.min(500, Number(e.target.value))))} /></label><button className="primary-wide" disabled={busy !== null} onClick={create}>{busy === 'create' ? <LoaderCircle className="spin" /> : <Play />} Create room</button></article>}
     </section>
     {error && <p className="form-error page-error">{error}</p>}
   </main><aside className="desktop-marquee right"><div>PLAY<br />TO<br />WIN</div></aside></div>
+}
+
+function ResultsScreen({ snapshot, leaveRoom }: { snapshot: RoomSnapshot; leaveRoom: () => void }) {
+  const players = [...snapshot.members].filter((member) => member.status !== 'left' && member.status !== 'removed').sort((a, b) => (b.final_score ?? 0) - (a.final_score ?? 0))
+  const winnerScore = players[0]?.final_score ?? 0
+  return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell results-shell">
+    <header className="topbar"><button className="back-button" onClick={leaveRoom}><ArrowLeft size={18} /> Leave room</button><RoomCode code={snapshot.room.code} /></header>
+    <section className="results-hero"><span className="eyebrow">MATCH COMPLETE</span><h1>What a finish!</h1><p>First to <b>{snapshot.room.target_score}</b> points · Final results</p></section>
+    <section className="results-card"><div className="results-heading"><div><span className="eyebrow">FINAL SCORES</span><h2>{players[0]?.profiles?.display_name || 'Winner'} wins!</h2></div><Crown size={30} /></div><div className="results-list">{players.map((player, index) => <div className={`results-player ${index === 0 ? 'winner' : ''}`} key={player.user_id}><span className="results-rank">{index + 1}</span><span className="mini-avatar" style={{ background: player.profiles?.avatar_color || '#57b8d7' }}>{player.profiles?.display_name?.[0] || '?'}</span><div><b>{player.profiles?.display_name || 'Player'} {index === 0 && <Crown className="host-crown" size={15} aria-label="Winner" />}</b><small>{index === 0 && (player.final_score ?? 0) === winnerScore ? 'Winner' : 'Final total'}</small></div><strong>{player.final_score ?? 0}</strong></div>)}</div></section>
+    <section className="results-actions"><p>The game is complete. These final scores have been recorded.</p><button className="primary-wide" onClick={leaveRoom}>Back to rooms</button></section>
+  </main><aside className="desktop-marquee right"><div>YOUR<br />LUCK<br />AWAITS</div></aside></div>
 }
 
 function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leaveRoom: () => void }) {
@@ -590,7 +606,8 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
   const approved = members.filter((member) => member.status === 'approved')
   const pending = members.filter((member) => member.status === 'pending')
   const hostName = members.find((member) => member.user_id === room.host_user_id)?.profiles?.display_name || 'Host'
-  const quitRoom = async () => { setBusy(true); try { await leaveRoomRpc(room.id); leaveRoom() } catch (caught) { setError(errorMessage(caught, 'Could not leave this room.')) } finally { setBusy(false) } }
+  const quitRoom = async () => { setBusy(true); leaveRoom(); try { await leaveRoomRpc(room.id) } catch { /* Navigation already completed; cleanup can finish independently. */ } finally { setBusy(false) } }
+  if (room.status === 'completed') return <ResultsScreen snapshot={snapshot} leaveRoom={leaveRoom} />
   if ((room.status === 'active' || room.status === 'round_review') && me?.status === 'approved') return <TablePreview roomCode={room.code} targetScore={room.target_score} hostName={hostName} hostUserId={room.host_user_id} roomId={room.id} user={user} onLeave={() => void quitRoom()} />
   const approve = async (member: string) => { setBusy(true); try { await approveRoomMember(room.id, member); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not approve that player.') } finally { setBusy(false) } }
   const begin = async () => { setBusy(true); try { await startMatch(room.id); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not start the match.') } finally { setBusy(false) } }
@@ -603,14 +620,13 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
     </section>
     {host && room.status === 'lobby' && <section className="host-controls"><p>{pending.length ? `${pending.length} player${pending.length === 1 ? ' is' : 's are'} waiting for approval.` : approved.length < 3 ? 'Approve at least 3 players to begin.' : 'The table is ready.'}</p><button className="primary-wide" disabled={busy || approved.length < 3} onClick={() => void begin()}>{busy ? <LoaderCircle className="spin" /> : <Play />} Start match</button></section>}
     {room.status === 'round_review' && <section className="host-controls"><p>Everyone has confirmed. Preparing the next round…</p></section>}
-    {room.status === 'completed' && <section className="host-controls"><p>The game is complete. The final scores have been recorded.</p></section>}
     {!host && me?.status === 'pending' && <section className="host-controls"><p>Your seat request is waiting for {hostName}. This page refreshes automatically.</p></section>}
   </main><aside className="desktop-marquee right"><div>YOUR<br />LUCK<br />AWAITS</div></aside></div>
 }
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
-  const [showLanding, setShowLanding] = useState(() => window.location.pathname === '/landing' || (window.location.pathname === '/' && sessionStorage.getItem('flip7-app-entered') !== '1'))
+  const [showLanding, setShowLanding] = useState(() => window.location.pathname === '/' || window.location.pathname === '/landing')
   const [roomCode, setRoomCode] = useState(() => roomCodeFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get('room'))
   useEffect(() => {
     if (!supabase) { setUser(null); return }
@@ -619,10 +635,11 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
   useEffect(() => {
+    if (showLanding && window.location.pathname === '/') window.history.replaceState({}, '', '/landing')
     if (!showLanding && window.location.pathname === '/') window.history.replaceState({}, '', roomCode ? `/game/${roomCode}` : '/lobby')
   }, [roomCode, showLanding])
   const openRoom = (code: string) => { const next = code.toUpperCase(); window.history.replaceState({}, '', `/game/${next}`); setRoomCode(next) }
-  const leaveRoom = () => { window.history.replaceState({}, '', '/lobby'); setRoomCode(null) }
+  const leaveRoom = () => { window.history.replaceState({}, '', '/landing'); setRoomCode(null); setShowLanding(true) }
   const enterApp = () => { sessionStorage.setItem('flip7-app-entered', '1'); window.history.replaceState({}, '', '/lobby'); setShowLanding(false) }
   if (!supabase) return <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
   if (showLanding) return <LandingScreen onStart={enterApp} />
