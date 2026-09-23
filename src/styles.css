@@ -26,4 +26,7 @@ button { font: inherit; }
 .target-list { display: grid; gap: 8px; margin-top: 16px; }.target-list button { border: 3px solid #132d67; background: #57b8d7; padding: 13px; color: #132d67; font-weight: 900; text-align: left; cursor: pointer; }
 @media (max-width: 720px) { .app-shell { display: block; }.desktop-marquee { display: none; }.game-shell { width: 100%; border: 0; box-shadow: none; }.opponents { grid-template-columns: repeat(3, minmax(126px,1fr)); }.table-area { min-height: 315px; }.card-table { min-height: 181px; } }
 @media (max-width: 390px) { .topbar { padding-inline: 12px; }.opponents { margin: 0; padding-inline: 9px; }.actions { gap: 6px; padding: 10px; }.actions button { font-size: 11px; }.table-area { padding-inline: 14px; }.picker-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.room-share-card { margin: 18px; min-height: 74px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 3px solid #132d67; background: #f8edc7; box-shadow: 5px 5px 0 #132d67; }
+.room-share-card p { margin: 3px 0 0; font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
