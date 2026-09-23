@@ -117,7 +117,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const score = mine?.round_score ?? localScore
   const visiblePlayers: Player[] = liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id).length })) : demoPlayers
   const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
-  const cardRows = Array.from({ length: Math.ceil(table.length / 4) }, (_, rowIndex) => table.slice(rowIndex * 4, rowIndex * 4 + 4))
+  const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
 
   const addCard = async (card: Card, targetUserId?: string, confirmBust = false) => {
     if (roomId) {
@@ -207,9 +207,9 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           <div className="card-table">
             <AnimatePresence initial={false}>
               <div className="card-rows">
-                {cardRows.map((row, rowIndex) => <div className="card-row" key={`card-row-${rowIndex}`}>
+                {cardRows.map((row, rowIndex) => <div className={`card-row cards-${row.length}`} key={`card-row-${rowIndex}`}>
                   {row.map((card, rowCardIndex) => {
-                    const index = rowIndex * 4 + rowCardIndex
+                    const index = rowIndex * 5 + rowCardIndex
                     return <motion.button
                       className={`table-card ${card.kind}`}
                       key={`${card.id}-${index}`}
@@ -256,7 +256,6 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           </motion.div>
         )}
       </AnimatePresence>
-        <AnimatePresence>{toast && <motion.div className="toast" initial={{ y: 35, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 35, opacity: 0 }} onAnimationComplete={() => window.setTimeout(() => setToast(''), 2600)}>{toast}</motion.div>}</AnimatePresence>
         <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload() }} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
