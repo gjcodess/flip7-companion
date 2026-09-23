@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus } from 'lucide-react'
+import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
@@ -190,7 +190,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         {pickerOpen && (
           <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPickerOpen(false)}>
             <motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} transition={{ type: 'spring', damping: 26 }} onClick={(event) => event.stopPropagation()}>
-              <div className="picker-heading"><div><span>PHYSICAL CARD</span><h2>What did you flip?</h2></div><button onClick={() => setPickerOpen(false)}>Close</button></div>
+              <div className="picker-heading"><div><span>PHYSICAL CARD</span><h2>What did you flip?</h2></div><button className="close-button" aria-label="Close card picker" title="Close" onClick={() => setPickerOpen(false)}><X size={19} /></button></div>
               <p>Select the card in front of you. The app never draws a card for you.</p>
               <div className="picker-grid">
                 {pickerCards.map((card) => <button key={card.id} onClick={() => addCard(card)} aria-label={`Record ${card.label}`}><CardArtwork card={card} lazy /></button>)}
@@ -203,7 +203,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
-              <div className="picker-heading"><div><span>{openPanel === 'players' ? 'AT THIS TABLE' : 'HOW TO PLAY'}</span><h2>{openPanel === 'players' ? 'Players' : 'Rules'}</h2></div><div className="panel-heading-actions">{openPanel === 'players' && <b className="panel-count">{visiblePlayers.length + 1} players</b>}<button onClick={() => setOpenPanel(null)}>Close</button></div></div>
+              <div className="picker-heading"><div><span>{openPanel === 'players' ? 'AT THIS TABLE' : 'HOW TO PLAY'}</span><h2>{openPanel === 'players' ? 'Players' : 'Rules'}</h2></div><div className="panel-heading-actions">{openPanel === 'players' && <b className="panel-count">{visiblePlayers.length + 1} players</b>}<button className="close-button" aria-label="Close panel" title="Close" onClick={() => setOpenPanel(null)}><X size={19} /></button></div></div>
               {openPanel === 'players' ? <div className="info-list"><div className="info-player current-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'Y')[0]}</span><div><b>{user?.user_metadata.display_name || 'You'} (you)</b><small>Your score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} pts` : player.state === 'stayed' ? `Stayed · ${player.roundScore} pts` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy">
                 <section><h3>Objective</h3><p>Be the first player to reach 200 points. At the end of that round, the player with the most points wins.</p></section>
                 <section><h3>On your turn</h3><p>Choose <b>Hit</b> to take another card or <b>Stay</b> to stop and bank your points. Each player records the physical cards they receive.</p></section>
@@ -217,7 +217,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
             </motion.section>
           </motion.div>}
         </AnimatePresence>
-        <AnimatePresence>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button onClick={() => setPendingAction(null)}>Close</button></div><div className="target-list">{liveRound?.players.filter((player) => player.user_id !== user?.id).map((player) => <button key={player.user_id} onClick={() => void addCard(pendingAction, player.user_id)}>{player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
+        <AnimatePresence>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button className="close-button" aria-label="Close action target" title="Close" onClick={() => setPendingAction(null)}><X size={19} /></button></div><div className="target-list">{liveRound?.players.filter((player) => player.user_id !== user?.id).map((player) => <button key={player.user_id} onClick={() => void addCard(pendingAction, player.user_id)}>{player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
     </div>
   )
 }
