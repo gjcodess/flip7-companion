@@ -4,7 +4,7 @@ import { Bell, Check, ChevronDown, CircleHelp, Crown, LogOut, MoreHorizontal, Pl
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
-import { approveRoomMember, confirmRoundResult, createPasswordAccount, createRoom, currentUser, getLiveRound, getRoomSnapshot, heartbeatRoom, recordRoundCard, requestRoomJoin, signInAsGuest, signInWithPassword, startMatch, stayInRound, type LiveRound, type RoomSnapshot } from './lib/room'
+import { approveRoomMember, confirmRoundResult, createPasswordAccount, createRoom, currentUser, getLiveRound, getRoomSnapshot, heartbeatRoom, leaveRoom as leaveRoomRpc, recordRoundCard, requestRoomJoin, signInAsGuest, signInWithPassword, startMatch, stayInRound, type LiveRound, type RoomSnapshot } from './lib/room'
 
 type Player = {
   id: string
@@ -46,7 +46,7 @@ function cardCode(card: Card) {
   return codes[card.id]
 }
 
-function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', roomId, user }: { roomCode?: string; targetScore?: number; hostName?: string; roomId?: string; user?: User }) {
+function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; roomId?: string; user?: User; onLeave?: () => void }) {
   const [table, setTable] = useState<Card[]>(demoTable)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -106,7 +106,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           <div className="brand"><span>FLIP</span><strong>7</strong></div>
           <div className="room-code"><span>ROOM</span><b>{roomCode}</b><button aria-label="Room options" onClick={() => setShowMenu(!showMenu)}><MoreHorizontal size={19} /></button></div>
           <button className="avatar" aria-label="Open profile">G</button>
-          {showMenu && <div className="room-menu"><button><Users size={16} /> Players</button><button><CircleHelp size={16} /> Rules</button><button><LogOut size={16} /> Leave room</button></div>}
+          {showMenu && <div className="room-menu"><button><Users size={16} /> Players</button><button><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
 
         <section className="match-strip">
@@ -165,7 +165,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
               <div className="picker-heading"><div><span>PHYSICAL CARD</span><h2>What did you flip?</h2></div><button onClick={() => setPickerOpen(false)}>Close</button></div>
               <p>Select the card in front of you. The app never draws a card for you.</p>
               <div className="picker-grid">
-                {pickerCards.map((card) => <button key={card.id} onClick={() => addCard(card)}><CardArtwork card={card} /><span>{card.label}</span></button>)}
+                {pickerCards.map((card) => <button key={card.id} onClick={() => addCard(card)} aria-label={`Record ${card.label}`}><CardArtwork card={card} /></button>)}
               </div>
             </motion.section>
           </motion.div>
@@ -273,11 +273,12 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
   const approved = members.filter((member) => member.status === 'approved')
   const pending = members.filter((member) => member.status === 'pending')
   const hostName = members.find((member) => member.user_id === room.host_user_id)?.profiles?.display_name || 'Host'
-  if (room.status === 'active' && me?.status === 'approved') return <TablePreview roomCode={room.code} targetScore={room.target_score} hostName={hostName} roomId={room.id} user={user} />
+  const quitRoom = async () => { setBusy(true); try { await leaveRoomRpc(room.id); leaveRoom() } catch (caught) { setError(errorMessage(caught, 'Could not leave this room.')) } finally { setBusy(false) } }
+  if (room.status === 'active' && me?.status === 'approved') return <TablePreview roomCode={room.code} targetScore={room.target_score} hostName={hostName} roomId={room.id} user={user} onLeave={() => void quitRoom()} />
   const approve = async (member: string) => { setBusy(true); try { await approveRoomMember(room.id, member); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not approve that player.') } finally { setBusy(false) } }
   const begin = async () => { setBusy(true); try { await startMatch(room.id); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not start the match.') } finally { setBusy(false) } }
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
-    <header className="topbar"><button className="back-button" onClick={leaveRoom}><ArrowLeft size={18} /> Rooms</button><div className="room-code"><span>ROOM</span><b>{room.code}</b></div></header>
+    <header className="topbar"><button className="back-button" onClick={() => void quitRoom()} disabled={busy}><ArrowLeft size={18} /> Leave room</button><div className="room-code"><span>ROOM</span><b>{room.code}</b></div></header>
     <section className="room-hero"><span className="eyebrow">{room.status === 'lobby' ? 'LOBBY' : 'MATCH IN PROGRESS'}</span><h1>{room.status === 'lobby' ? 'Waiting for the table.' : 'The table is playing.'}</h1><p>First to <b>{room.target_score}</b> points · {approved.length} approved player{approved.length === 1 ? '' : 's'}</p></section>
     <section className="members-card"><div className="members-heading"><div><span className="eyebrow">PLAYERS</span><h2>Seats at this table</h2></div><span className="seat-count">{approved.length}/18</span></div>
       {members.map((member) => <div className="member-row" key={member.user_id}><div className="mini-avatar" style={{ background: member.profiles?.avatar_color || '#57b8d7' }}>{member.profiles?.display_name?.[0] || '?'}</div><div><b>{member.profiles?.display_name || 'Player'} {member.user_id === user.id && '(you)'}</b><span>{member.role === 'host' ? 'Host' : member.status === 'pending' ? 'Waiting for host approval' : 'Ready'}</span></div>{member.role === 'host' ? <Crown size={18} /> : host && member.status === 'pending' ? <button className="approve-button" disabled={busy} onClick={() => void approve(member.user_id)}>Approve</button> : <span className={`member-status ${member.status}`}>{member.status}</span>}</div>)}

@@ -71,6 +71,11 @@ export async function requestRoomJoin(code: string, displayName: string) {
   return data as Room
 }
 
+export async function leaveRoom(roomId: string) {
+  const { error } = await client().rpc('leave_room', { p_room_id: roomId })
+  if (error) throw new Error(error.message)
+}
+
 export async function getRoomSnapshot(roomCode: string): Promise<RoomSnapshot> {
   const db = client()
   const { data: room, error: roomError } = await db
