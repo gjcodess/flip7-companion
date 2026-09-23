@@ -12,7 +12,7 @@ type Player = {
   name: string
   score: number
   roundScore: number
-  state: 'active' | 'stayed' | 'busted'
+  state: 'active' | 'stayed' | 'frozen' | 'busted'
   color: string
   cards: number
   isHost?: boolean
@@ -109,7 +109,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [stayPrompt, setStayPrompt] = useState<'stay' | 'confirm' | null>(null)
   const [liveRound, setLiveRound] = useState<LiveRound | null>(null)
   const [pendingAction, setPendingAction] = useState<Card | null>(null)
-  const [pendingBustCard, setPendingBustCard] = useState<Card | null>(null)
+  const [localBusted, setLocalBusted] = useState(false)
   const [redoStack, setRedoStack] = useState<Card[]>([])
   const [lastEdit, setLastEdit] = useState<{ index: number; card: Card } | null>(null)
   const [lastRemoval, setLastRemoval] = useState<{ index: number; card: Card } | null>(null)
@@ -163,11 +163,15 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
   const numberCardCount = table.filter((card) => card.kind === 'number').length
-  const score = mine?.round_score ?? localScore
+  const busted = mine?.status === 'busted' || localBusted
+  const frozen = mine?.status === 'frozen'
+  const score = mine?.round_score ?? (busted ? 0 : localScore)
   const flipSevenBonus = mine?.flip_seven_bonus ?? (numberCardCount >= 7 ? 15 : 0)
   const headerScore = mine?.total_score ?? score
-  const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
-  const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
+  const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
+  const canEditCards = roomId ? (mine?.status === 'active' || mine?.status === 'busted') && mine.confirmed_at === null : !isStaying
+  const isHost = hostUserId === user?.id
+  const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
   const organizeCards = () => {
     const rank = (card: Card) => card.kind === 'number' ? 0 : card.kind === 'action' ? 3 : card.id === 'modifier-x2' ? 2 : 1
@@ -180,7 +184,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
     if (roomId) setTableCardIds(ids)
   }
 
-  const addCard = async (card: Card, targetUserId?: string, confirmBust = false) => {
+  const addCard = async (card: Card, targetUserId?: string) => {
     if (submitting || actionLockRef.current) return
     if (roomId) {
       if (card.kind === 'action' && !targetUserId) { setPendingAction(card); setPickerOpen(false); return }
@@ -191,10 +195,12 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       try {
         const previousCard = editingCardIndex === null ? null : table[editingCardIndex]
         const existingId = editingCardIndex === null ? null : tableCardIds[editingCardIndex]
+        const duplicateSelection = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
+        const correctingBust = mine?.status === 'busted'
         if (editingCardIndex !== null && !existingId) throw new Error('This card is still loading. Try again in a moment.')
-        const result = await withTimeout(recordRoundCard(roomId, cardCode(card), targetUserId, confirmBust))
-        if (result.needs_bust_confirmation) { setPendingBustCard(card); setPickerOpen(false); return }
-        if (existingId) await withTimeout(voidRoundCard(roomId, existingId))
+        if (existingId && correctingBust) await withTimeout(voidRoundCard(roomId, existingId))
+        const result = await withTimeout(recordRoundCard(roomId, cardCode(card), targetUserId, true))
+        if (existingId && !correctingBust && !duplicateSelection) await withTimeout(voidRoundCard(roomId, existingId))
         await withTimeout(refreshLiveRound(editingCardIndex ?? undefined)); setToast(editingCardIndex === null ? `${card.label} recorded` : `${card.label} updated`)
         setRedoStack([])
         setLastAdded(editingCardIndex === null && (!targetUserId || targetUserId === user?.id) ? { card, id: result.card_id } : null)
@@ -205,14 +211,11 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       return
     }
     const duplicate = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
-    if (duplicate) {
-      setToast(`A second ${card.label} would bust you. Bust confirmation will be added with live game actions.`)
-      setPickerOpen(false)
-      return
-    }
     setTable((current) => editingCardIndex === null ? [...current, card] : current.map((entry, index) => index === editingCardIndex ? card : entry))
+    if (duplicate) setLocalBusted(true)
+    else if (editingCardIndex !== null || localBusted) setLocalBusted(false)
     setPickerOpen(false)
-    setToast(editingCardIndex === null ? `${card.label} added to your table` : `${card.label} updated`)
+    setToast(duplicate ? `Duplicate ${card.label} recorded. You busted this round.` : editingCardIndex === null ? `${card.label} added to your table` : `${card.label} updated`)
     setRedoStack([])
     setLastAdded(editingCardIndex === null ? { card } : null)
     setLastEdit(editingCardIndex !== null ? { index: editingCardIndex, card: table[editingCardIndex] } : null)
@@ -234,6 +237,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         await withTimeout(refreshLiveRound())
       } else {
         setTable((current) => current.filter((_, cardIndex) => cardIndex !== index))
+        setLocalBusted(false)
       }
       setRedoStack([])
       setLastAdded(null)
@@ -338,6 +342,19 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
     setStayPrompt('stay')
   }
 
+  const proceedToNextRound = async () => {
+    if (!roomId || !isHost || !allPlayersSettled || submitting || actionLockRef.current) return
+    actionLockRef.current = true
+    setSubmitting(true)
+    try {
+      await withTimeout(finalizeRound(roomId))
+      cardOrderRef.current = []
+      await withTimeout(refreshLiveRound())
+      setToast('Next round started.')
+    } catch (caught) { setToast(errorMessage(caught, 'Could not start the next round.')) }
+    finally { setSubmitting(false); actionLockRef.current = false }
+  }
+
   const completeStayPrompt = async () => {
     const decision = stayPrompt
     if (!decision || submitting || actionLockRef.current) return
@@ -380,7 +397,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           {visiblePlayers.map((player) => (
             <article className={`opponent ${player.state}`} key={player.id}>
               <div className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</div>
-          <div className="opponent-copy"><b>{player.name}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</span></div>
+          <div className="opponent-copy"><b>{player.name}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'frozen' ? `Freezed · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</span></div>
           <strong><small>Total pts:</small> <b>{player.score}</b></strong>
             </article>
           ))}
@@ -388,7 +405,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
 
         <section className="table-area">
           <div className="section-kicker"><Crown size={16} /> MY TABLE <button className="organize-button" onClick={organizeCards} disabled={table.length < 2} title="Organize cards"><ListOrdered size={14} /> Organize</button></div>
-          <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b>{flipSevenBonus > 0 && <small className="flip-seven-bonus">+15</small>}</div>
+          <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b>{busted ? <small className="flip-seven-bonus bust-badge">BUST</small> : flipSevenBonus > 0 && <small className="flip-seven-bonus">+15</small>}</div>
           <AnimatePresence>{submitting && <motion.div className="card-operation-status" initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .9 }} role="status"><LoaderCircle className="spin" size={16} /> Updating table…</motion.div>}</AnimatePresence>
           <div className="card-table">
             <AnimatePresence initial={false}>
@@ -416,14 +433,15 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
                   </AnimatePresence>
                 </div>)}
               </div>
-                  {!mine?.confirmed_at && !isStaying && <button className="add-card-card" disabled={submitting || !canEditCards} onClick={() => { if (submitting || !canEditCards) return; setPickerOpen(true) }} aria-label="Record a physical card"><Plus size={30} /></button>}
+                  {!mine?.confirmed_at && !isStaying && !busted && !frozen && <button className="add-card-card" disabled={submitting || !canEditCards} onClick={() => { if (submitting || !canEditCards) return; setPickerOpen(true) }} aria-label="Record a physical card"><Plus size={30} /></button>}
             </AnimatePresence>
           </div>
         </section>
 
         <section className="actions">
+          {isHost && allPlayersSettled && <button className="next-round-button" disabled={submitting} onClick={() => void proceedToNextRound()}>{submitting ? <LoaderCircle className="spin" size={17} /> : <Play size={17} />} Proceed to next round</button>}
           <button className="secondary-action" disabled={table.length === 0 || submitting || !canEditCards} onClick={() => void undo()}><Undo2 size={19} /> Undo</button>
-          <button className={`stay-action ${isStaying || mine?.status !== 'active' ? 'confirmed' : ''}`} disabled={numberCardCount < 2 || submitting || mine?.confirmed_at !== null} onClick={() => void stay()}>{mine?.confirmed_at ? <>BANKED!</> : mine?.status && mine.status !== 'active' ? <>Confirm round</> : isStaying ? <>Staying</> : <>STAY / BANK</>}</button>
+          <button className={`stay-action ${isStaying || busted || frozen || (mine?.status != null && mine.status !== 'active') ? 'confirmed' : ''} ${busted ? 'bust-state' : ''} ${frozen ? 'frozen-state' : ''}`} disabled={busted || frozen || numberCardCount < 2 || submitting || mine?.confirmed_at !== null} onClick={() => void stay()}>{busted ? <>BUST!</> : frozen ? <>FREEZED!</> : mine?.confirmed_at ? <>BANKED!</> : mine?.status && mine.status !== 'active' ? <>Confirm round</> : isStaying ? <>Staying</> : <>STAY / BANK</>}</button>
           <button className="secondary-action redo-action" disabled={redoStack.length === 0 || submitting || !canEditCards} onClick={() => void redo()}><Redo2 size={19} /> Redo</button>
         </section>
 
@@ -433,7 +451,6 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>STAY / BANK</span><h2>Stay for this round?</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">Your score will be saved and your round will be confirmed. You will wait for the other players.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">Confirm stay</span></button></div></motion.section></motion.div>}</AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {pendingBustCard && <motion.div key="bust-confirm" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker card-actions-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>DUPLICATE CARD</span><h2>Confirm bust?</h2></div><button className="close-button" aria-label="Close bust confirmation" title="Close" onClick={() => setPendingBustCard(null)}><X size={19} /></button></div><p>You already have a {pendingBustCard.label}. Recording another one will bust your round and score zero.</p><div className="card-action-buttons"><button className="secondary-action" onClick={() => setPendingBustCard(null)}>Cancel</button><button className="danger-action" onClick={() => { const card = pendingBustCard; setPendingBustCard(null); void addCard(card, undefined, true) }}>Confirm bust</button></div></motion.section></motion.div>}
         {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setSelectedCardIndex(null)}><motion.section className="card-picker card-actions-panel card-focus-panel" initial={{ scale: .86, y: 40, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: .9, y: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 330, damping: 25 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>MY CARD</span><h2>{table[selectedCardIndex].label}</h2></div><button className="close-button" aria-label="Close card actions" title="Close" onClick={() => setSelectedCardIndex(null)}><X size={19} /></button></div><motion.div className="card-focus-art" initial={{ scale: .45, y: 100, rotate: -8, opacity: 0 }} animate={{ scale: 1, y: 0, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20, delay: .04 }}><CardArtwork card={table[selectedCardIndex]} /></motion.div><p>Edit this card or remove it while your round is still active.</p><div className="card-action-buttons"><button className="secondary-action" disabled={submitting} onClick={() => { const index = selectedCardIndex; setSelectedCardIndex(null); setEditingCardIndex(index); window.setTimeout(() => setPickerOpen(true), 0) }}>Edit card</button><button className="danger-action" disabled={submitting} onClick={() => void removeCard(selectedCardIndex)}>Remove card</button></div></motion.section></motion.div>}
         {pickerOpen && (
           <motion.div key="card-picker" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => { setPickerOpen(false); setEditingCardIndex(null); setPendingAction(null) }}>
@@ -452,7 +469,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
               <div className="picker-heading"><div><span>{openPanel === 'players' ? 'AT THIS TABLE' : 'HOW TO PLAY'}</span><h2>{openPanel === 'players' ? 'Players' : 'Rules'}</h2></div><div className="panel-heading-actions">{openPanel === 'players' && <b className="panel-count">{visiblePlayers.length + 1} players</b>}<button className="close-button" aria-label="Close panel" title="Close" onClick={() => setOpenPanel(null)}><X size={19} /></button></div></div>
-              {openPanel === 'players' ? <div className="info-list"><div className="info-player current-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'M')[0]}</span><div><b>{user?.user_metadata.display_name || 'Player'} (me) {hostUserId === user?.id && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>My score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name} {player.isHost && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy">
+              {openPanel === 'players' ? <div className="info-list"><div className="info-player current-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'M')[0]}</span><div><b>{user?.user_metadata.display_name || 'Player'} (me) {hostUserId === user?.id && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>My score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name} {player.isHost && <Crown className="host-crown" size={15} aria-label="Host" />}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'frozen' ? `Freezed · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy">
                 <section><h3>Objective</h3><p>Be the first player to reach 200 points. At the end of that round, the player with the most points wins.</p></section>
                 <section><h3>On your turn</h3><p>Choose <b>Hit</b> to take another card or <b>Stay</b> to stop and bank your points. Each player records the physical cards they receive.</p></section>
                 <section><h3>Number cards</h3><p>Number cards score their face value. You cannot have the same number twice: drawing a duplicate makes you bust and score zero for the round.</p></section>
@@ -580,7 +597,6 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const finalizingRef = useRef(false)
   const refresh = async () => { try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') } }
   useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 5000); return () => window.clearInterval(timer) }, [code])
   useEffect(() => {
@@ -592,12 +608,6 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
     channel.subscribe()
     return () => { void db.removeChannel(channel) }
   }, [snapshot?.room.id, snapshot?.room.status])
-  useEffect(() => {
-    if (!snapshot || snapshot.room.status !== 'round_review' || snapshot.room.host_user_id !== user.id || finalizingRef.current) return
-    finalizingRef.current = true
-    setBusy(true)
-    void finalizeRound(snapshot.room.id).then(refresh).catch((caught) => setError(errorMessage(caught, 'Could not start the next round.'))).finally(() => { finalizingRef.current = false; setBusy(false) })
-  }, [snapshot?.room.id, snapshot?.room.status, snapshot?.room.host_user_id, user.id])
   if (error) return <div className="simple-state"><p>{error}</p><button onClick={leaveRoom}>Back to rooms</button></div>
   if (!snapshot) return <div className="simple-state"><LoaderCircle className="spin" /><p>Setting the table…</p></div>
   const { room, members } = snapshot
