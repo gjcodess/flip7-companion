@@ -131,7 +131,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <aside className="desktop-marquee left"><div>FLIP<br />7</div></aside>
       <main className="game-shell">
         <header className="topbar">
-          <div className="brand"><span>FLIP</span><strong>7</strong></div>
+          <img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" />
           <RoomCode code={roomCode} showCopy={false} />
           <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>G</button>
           {showMenu && <div className="room-menu"><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
@@ -222,6 +222,16 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   )
 }
 
+function LandingScreen({ onStart }: { onStart: () => void }) {
+  return <div className="landing-page">
+    <header className="landing-nav"><img className="landing-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="landing-signin" onClick={onStart}>Sign in</button></header>
+    <main>
+      <section className="landing-hero"><div className="landing-copy"><span className="eyebrow">THE PHYSICAL CARD COMPANION</span><h1>Press your luck.<br /><em>Race to 200.</em></h1><p>Bring the table to life. Track the cards you actually flip, settle the round together, and keep the whole game moving.</p><div className="landing-actions"><button className="landing-primary" onClick={onStart}><Play size={18} /> Start a table</button><button className="landing-secondary" onClick={() => document.getElementById('landing-how')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button></div><div className="landing-facts"><span><b>3+</b> players</span><span><b>200</b> target score</span><span><b>Live</b> table sync</span></div></div><div className="landing-art"><img className="landing-promo-card" src="/assets/promo-1.png" alt="Flip 7 card game" /><img className="landing-promo-player" src="/assets/promo-2.png" alt="A player pressing their luck" /></div></section>
+      <section id="landing-how" className="landing-how"><span className="eyebrow">MADE FOR THE TABLE</span><h2>Keep your eyes on the cards.</h2><div className="landing-features"><article><b>01</b><h3>Start together</h3><p>Create a room, share the code, and approve the players joining your table.</p></article><article><b>02</b><h3>Record your flips</h3><p>Each player records their own physical cards. The app never draws for you.</p></article><article><b>03</b><h3>Settle the round</h3><p>Confirm scores, resolve disagreements, and keep the race to 200 moving.</p></article></div></section>
+    </main>
+  </div>
+}
+
 function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -252,7 +262,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
   return <div className="app-shell lobby-shell">
     <aside className="desktop-marquee left"><div>FLIP<br />7</div></aside>
     <main className="game-shell lobby-main">
-      <header className="topbar"><div className="brand"><span>FLIP</span><strong>7</strong></div><span className="topbar-caption">PHYSICAL CARD COMPANION</span></header>
+      <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><span className="topbar-caption">PHYSICAL CARD COMPANION</span></header>
       <section className="auth-hero"><span className="eyebrow">CARNIVAL TABLE</span><h1>Track the cards<br />you actually flip.</h1><p>Use your physical deck. Each player records their own cards, then the table settles the round together.</p></section>
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-tabs">
@@ -288,7 +298,7 @@ function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: string) =
   }
 
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
-    <header className="topbar"><div className="brand"><span>FLIP</span><strong>7</strong></div><button className="account-pill" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> {name}</button></header>
+    <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> {name}</button></header>
     <section className="auth-hero compact"><span className="eyebrow">WELCOME TO THE TABLE</span><h1>Ready when the deck is.</h1><p>Create a room for your group, or enter a code from the host.</p></section>
     <section className="lobby-grid">
       <article className="lobby-card"><span className="eyebrow">HOST A GAME</span><h2>Start a table</h2><label>Your display name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} /></label><span className="field-label">TARGET SCORE</span><div className="target-options">{[100, 200, 300].map((score) => <button key={score} className={target === score ? 'selected' : ''} onClick={() => setTarget(score)}>{score}</button>)}</div><label>Custom target (50–500)<input type="number" min="50" max="500" value={target} onChange={(e) => setTarget(Math.max(50, Math.min(500, Number(e.target.value))))} /></label><button className="primary-wide" disabled={busy !== null} onClick={create}>{busy === 'create' ? <LoaderCircle className="spin" /> : <Play />} Create room</button></article>
@@ -336,6 +346,7 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
+  const [showLanding, setShowLanding] = useState(true)
   const [roomCode, setRoomCode] = useState(() => new URLSearchParams(window.location.search).get('room'))
   useEffect(() => {
     if (!supabase) { setUser(null); return }
@@ -347,6 +358,6 @@ export default function App() {
   const leaveRoom = () => { window.history.replaceState({}, '', window.location.pathname); setRoomCode(null) }
   if (!supabase) return <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
   if (user === undefined) return <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>
-  if (!user) return <AuthScreen onAuthenticated={setUser} />
+  if (!user) return showLanding ? <LandingScreen onStart={() => setShowLanding(false)} /> : <AuthScreen onAuthenticated={setUser} />
   return roomCode ? <RoomScreen user={user} code={roomCode} leaveRoom={leaveRoom} /> : <HomeScreen user={user} openRoom={openRoom} />
 }
