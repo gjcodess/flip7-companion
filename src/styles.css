@@ -55,6 +55,9 @@ button { font: inherit; }
 .info-player b { font-size: 13px; }
 .info-player small { color: #4d5c79; font-size: 10px; }
 .info-player > strong { padding-left: 8px; font-size: 15px; }
+.info-player.current-player { border-color: #ed4f7e; background: #ffe4e7; box-shadow: 2px 2px 0 #ed4f7e; }
+.info-player.current-player .mini-avatar { background: #ed4f7e !important; color: #fffdf5; }
+.info-player:nth-child(even) { background: #fffdf5; }
 .rules-copy { counter-reset: rule; gap: 9px; }
 .rules-copy section { position: relative; min-height: 64px; padding: 11px 12px 11px 45px; border: 2px solid #d8c995; border-left: 5px solid #57b8d7; border-radius: 7px; box-shadow: 2px 2px 0 rgba(19,45,103,.12); }
 .rules-copy section::before { content: counter(rule); counter-increment: rule; position: absolute; left: 10px; top: 12px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #132d67; color: #ffe05c; font-size: 11px; font-weight: 1000; }
