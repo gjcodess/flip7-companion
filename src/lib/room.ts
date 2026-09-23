@@ -135,8 +135,18 @@ export async function stayInRound(roomId: string) {
   if (error) throw new Error(error.message)
 }
 
+export async function cancelStay(roomId: string) {
+  const { error } = await client().rpc('cancel_stay', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+  if (error) throw new Error(error.message)
+}
+
 export async function confirmRoundResult(roomId: string) {
   const { error } = await client().rpc('confirm_round_result', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+  if (error) throw new Error(error.message)
+}
+
+export async function finalizeRound(roomId: string) {
+  const { error } = await client().rpc('finalize_round', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
   if (error) throw new Error(error.message)
 }
 
