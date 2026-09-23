@@ -137,5 +137,7 @@ button { line-height: 1; }
 .app-shell, .landing-page { background-image: radial-gradient(rgba(255,224,92,.12) 1.5px, transparent 1.5px); background-size: 18px 18px; }
 .game-shell { background-image: radial-gradient(rgba(19,45,103,.035) 1.25px, transparent 1.25px); background-size: 18px 18px; }
 .landing-page { background-color: #101d4d; }
+.lobby-main { background-image: radial-gradient(rgba(19,45,103,.045) 1.25px, transparent 1.25px); background-size: 18px 18px; }
+.table-area { background-image: linear-gradient(105deg, transparent 0 47%, rgba(255,224,92,.22) 47% 48%, transparent 48%), radial-gradient(rgba(19,45,103,.04) 1.25px, transparent 1.25px); background-size: auto, 18px 18px; }
 .landing-promo-card, .landing-promo-player { width: min(60%, 400px); left: 50%; right: auto; top: 50%; bottom: auto; }
 @media (max-width: 720px) { .landing-promo-card, .landing-promo-player { width: 70%; left: 50%; right: auto; top: 50%; bottom: auto; } }
