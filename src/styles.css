@@ -42,6 +42,24 @@ button { font: inherit; }
 .info-player small { font-size: 10px; }
 .rules-copy { margin-top: 16px; display: grid; gap: 10px; font-size: 13px; line-height: 1.45; }
 .rules-copy p { margin: 0; padding: 10px 12px; border-left: 4px solid #57b8d7; background: #fffdf5; }
+.rules-copy section { padding: 10px 12px; border-left: 4px solid #57b8d7; background: #fffdf5; }
+.rules-copy h3 { margin: 0 0 4px; color: #132d67; font-size: 14px; }
+.rules-copy section p { padding: 0; border: 0; background: transparent; }
+.info-panel { padding: 20px 16px 24px; }
+.panel-heading-actions { display: flex; align-items: center; gap: 10px; }
+.panel-count { padding: 5px 8px; border: 2px solid #132d67; border-radius: 999px; background: #ffe05c; color: #132d67; font-size: 10px; white-space: nowrap; }
+.info-list { gap: 10px; }
+.info-player { min-height: 60px; padding: 10px; border-width: 2px; border-radius: 8px; box-shadow: 2px 2px 0 rgba(19,45,103,.25); }
+.info-player:nth-child(even) { background: #f8edc7; }
+.info-player .mini-avatar { flex: 0 0 30px; width: 30px; height: 30px; }
+.info-player b { font-size: 13px; }
+.info-player small { color: #4d5c79; font-size: 10px; }
+.info-player > strong { padding-left: 8px; font-size: 15px; }
+.rules-copy { counter-reset: rule; gap: 9px; }
+.rules-copy section { position: relative; min-height: 64px; padding: 11px 12px 11px 45px; border: 2px solid #d8c995; border-left: 5px solid #57b8d7; border-radius: 7px; box-shadow: 2px 2px 0 rgba(19,45,103,.12); }
+.rules-copy section::before { content: counter(rule); counter-increment: rule; position: absolute; left: 10px; top: 12px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #132d67; color: #ffe05c; font-size: 11px; font-weight: 1000; }
+.rules-copy h3 { font-size: 13px; letter-spacing: .02em; }
+.rules-copy section p { font-size: 12px; line-height: 1.4; }
 
 @media (max-width: 720px) {
   body { overflow-x: hidden; }
