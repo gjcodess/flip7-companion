@@ -33,6 +33,9 @@ button { font: inherit; }
 .room-share-card .room-code { background: #fff7da; border-color: #132d67; color: #132d67; }
 .room-share-card .room-code span { color: #ed4f7e; }
 .room-share-card .room-code button { color: #132d67; }
+
+button { line-height: 1; }
+.primary-wide, .secondary-wide { padding-block: 0; }
 .room-menu { top: calc(100% - 1px); }
 .room-menu button { align-items: center; }
 .info-panel { max-height: min(70vh, 560px); }
