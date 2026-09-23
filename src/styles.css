@@ -29,4 +29,8 @@ button { font: inherit; }
 
 .room-share-card { margin: 18px; min-height: 74px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 3px solid #132d67; background: #f8edc7; box-shadow: 5px 5px 0 #132d67; }
 .room-share-card p { margin: 3px 0 0; font-size: 11px; }
+.room-share-card { background: #57b8d7; }
+.room-share-card .room-code { background: #fff7da; border-color: #132d67; color: #132d67; }
+.room-share-card .room-code span { color: #ed4f7e; }
+.room-share-card .room-code button { color: #132d67; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
