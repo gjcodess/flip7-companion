@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, MoreHorizontal, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus } from 'lucide-react'
+import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
@@ -42,7 +42,7 @@ function errorMessage(caught: unknown, fallback: string) {
   return fallback
 }
 
-function RoomCode({ code, withMenu = false, onMenu }: { code: string; withMenu?: boolean; onMenu?: () => void }) {
+function RoomCode({ code, showCopy = true }: { code: string; showCopy?: boolean }) {
   const [copied, setCopied] = useState(false)
   const copyCode = async () => {
     try {
@@ -64,7 +64,7 @@ function RoomCode({ code, withMenu = false, onMenu }: { code: string; withMenu?:
       // Clipboard access can be unavailable in an insecure local-network context.
     }
   }
-  return <div className="room-code"><span>ROOM</span><b>{code}</b><button className="copy-room-code" aria-label={copied ? 'Room code copied' : 'Copy room code'} title={copied ? 'Copied' : 'Copy room code'} onClick={() => void copyCode()}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>{withMenu && <button aria-label="Room options" onClick={onMenu}><MoreHorizontal size={19} /></button>}</div>
+  return <div className="room-code"><span>ROOM</span><b>{code}</b>{showCopy && <button className="copy-room-code" aria-label={copied ? 'Room code copied' : 'Copy room code'} title={copied ? 'Copied' : 'Copy room code'} onClick={() => void copyCode()}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}</div>
 }
 
 function cardCode(card: Card) {
@@ -131,8 +131,8 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <main className="game-shell">
         <header className="topbar">
           <div className="brand"><span>FLIP</span><strong>7</strong></div>
-          <RoomCode code={roomCode} withMenu onMenu={() => setShowMenu(!showMenu)} />
-          <button className="avatar" aria-label="Open profile">G</button>
+          <RoomCode code={roomCode} showCopy={false} />
+          <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>G</button>
           {showMenu && <div className="room-menu"><button><Users size={16} /> Players</button><button><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
 
