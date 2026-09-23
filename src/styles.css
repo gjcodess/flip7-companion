@@ -126,3 +126,13 @@ button { line-height: 1; }
 .landing-features h3 { margin: 24px 0 8px; color: #fff7da; font-size: 18px; }
 .landing-features p { margin: 0; color: rgba(255,247,218,.7); font-size: 13px; line-height: 1.45; }
 @media (max-width: 720px) { .landing-nav, .landing-hero, .landing-how { width: min(100% - 28px, 560px); }.landing-nav { min-height: 70px; }.landing-logo { width: 94px; }.landing-hero { min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-top: 48px; }.landing-copy h1 { font-size: clamp(48px, 14vw, 72px); }.landing-copy > p { font-size: 14px; }.landing-art { min-height: 360px; margin-top: 12px; }.landing-promo-card { width: 63%; right: 22%; top: 0; }.landing-promo-player { width: 59%; right: 0; bottom: -12%; }.landing-how { padding-top: 45px; }.landing-features { grid-template-columns: 1fr; }.landing-features article { min-height: 0; }.landing-features h3 { margin-top: 12px; } }
+.landing-art { min-height: 540px; }
+.landing-promo-card { width: min(58%, 400px); left: 4%; right: auto; top: 8%; transform: rotate(5deg); }
+.landing-promo-player { width: min(48%, 340px); right: 2%; bottom: 0; transform: rotate(-5deg); }
+@media (max-width: 720px) { .landing-art { min-height: 320px; margin-top: 18px; }.landing-promo-card { width: 68%; left: 1%; right: auto; top: 0; }.landing-promo-player { width: 53%; right: 0; bottom: 0; } }
+@media (prefers-reduced-motion: reduce) { .landing-page * { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+.landing-art::before { inset: 8% 6%; background: radial-gradient(circle at center, rgba(87,184,215,.42), rgba(87,184,215,.1) 44%, transparent 72%); }
+.landing-art::before { display: none; }
+.landing-promo-glow { position: absolute; z-index: 0; left: 50%; top: 50%; width: min(72%, 470px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(87,184,215,.45), rgba(87,184,215,.12) 45%, transparent 72%); filter: blur(2px); }
+.landing-promo-card, .landing-promo-player { width: min(60%, 400px); left: 50%; right: auto; top: 50%; bottom: auto; }
+@media (max-width: 720px) { .landing-promo-card, .landing-promo-player { width: 70%; left: 50%; right: auto; top: 50%; bottom: auto; } }
