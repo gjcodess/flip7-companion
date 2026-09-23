@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Bell, Check, ChevronDown, CircleHelp, Crown, LogOut, MoreHorizontal, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus } from 'lucide-react'
+import { Bell, Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, MoreHorizontal, Plus, Sparkles, Undo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
@@ -40,6 +40,31 @@ function errorMessage(caught: unknown, fallback: string) {
   if (caught instanceof Error) return caught.message
   if (typeof caught === 'object' && caught && 'message' in caught && typeof caught.message === 'string') return caught.message
   return fallback
+}
+
+function RoomCode({ code, withMenu = false, onMenu }: { code: string; withMenu?: boolean; onMenu?: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const copyCode = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code)
+      } else {
+        const textArea = document.createElement('textarea')
+        textArea.value = code
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        textArea.remove()
+      }
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // Clipboard access can be unavailable in an insecure local-network context.
+    }
+  }
+  return <div className="room-code"><span>ROOM</span><b>{code}</b><button className="copy-room-code" aria-label={copied ? 'Room code copied' : 'Copy room code'} title={copied ? 'Copied' : 'Copy room code'} onClick={() => void copyCode()}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>{withMenu && <button aria-label="Room options" onClick={onMenu}><MoreHorizontal size={19} /></button>}</div>
 }
 
 function cardCode(card: Card) {
@@ -106,7 +131,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       <main className="game-shell">
         <header className="topbar">
           <div className="brand"><span>FLIP</span><strong>7</strong></div>
-          <div className="room-code"><span>ROOM</span><b>{roomCode}</b><button aria-label="Room options" onClick={() => setShowMenu(!showMenu)}><MoreHorizontal size={19} /></button></div>
+          <RoomCode code={roomCode} withMenu onMenu={() => setShowMenu(!showMenu)} />
           <button className="avatar" aria-label="Open profile">G</button>
           {showMenu && <div className="room-menu"><button><Users size={16} /> Players</button><button><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
@@ -280,7 +305,7 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
   const approve = async (member: string) => { setBusy(true); try { await approveRoomMember(room.id, member); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not approve that player.') } finally { setBusy(false) } }
   const begin = async () => { setBusy(true); try { await startMatch(room.id); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not start the match.') } finally { setBusy(false) } }
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
-    <header className="topbar"><button className="back-button" onClick={() => void quitRoom()} disabled={busy}><ArrowLeft size={18} /> Leave room</button><div className="room-code"><span>ROOM</span><b>{room.code}</b></div></header>
+    <header className="topbar"><button className="back-button" onClick={() => void quitRoom()} disabled={busy}><ArrowLeft size={18} /> Leave room</button><RoomCode code={room.code} /></header>
     <section className="room-hero"><span className="eyebrow">{room.status === 'lobby' ? 'LOBBY' : 'MATCH IN PROGRESS'}</span><h1>{room.status === 'lobby' ? 'Waiting for the table.' : 'The table is playing.'}</h1><p>First to <b>{room.target_score}</b> points · {approved.length} approved player{approved.length === 1 ? '' : 's'}</p></section>
     <section className="members-card"><div className="members-heading"><div><span className="eyebrow">PLAYERS</span><h2>Seats at this table</h2></div><span className="seat-count">{approved.length}/18</span></div>
       {members.map((member) => <div className="member-row" key={member.user_id}><div className="mini-avatar" style={{ background: member.profiles?.avatar_color || '#57b8d7' }}>{member.profiles?.display_name?.[0] || '?'}</div><div><b>{member.profiles?.display_name || 'Player'} {member.user_id === user.id && '(you)'}</b><span>{member.role === 'host' ? 'Host' : member.status === 'pending' ? 'Waiting for host approval' : 'Ready'}</span></div>{member.role === 'host' ? <Crown size={18} /> : host && member.status === 'pending' ? <button className="approve-button" disabled={busy} onClick={() => void approve(member.user_id)}>Approve</button> : <span className={`member-status ${member.status}`}>{member.status}</span>}</div>)}
