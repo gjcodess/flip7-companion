@@ -77,6 +77,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [table, setTable] = useState<Card[]>(demoTable)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [openPanel, setOpenPanel] = useState<'players' | 'rules' | null>(null)
   const [toast, setToast] = useState('')
   const [isStaying, setIsStaying] = useState(false)
   const [liveRound, setLiveRound] = useState<LiveRound | null>(null)
@@ -133,7 +134,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           <div className="brand"><span>FLIP</span><strong>7</strong></div>
           <RoomCode code={roomCode} showCopy={false} />
           <button className="avatar" aria-label="Open room menu" onClick={() => setShowMenu(!showMenu)}>G</button>
-          {showMenu && <div className="room-menu"><button><Users size={16} /> Players</button><button><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
+          {showMenu && <div className="room-menu"><button onClick={() => { setShowMenu(false); setOpenPanel('players') }}><Users size={16} /> Players</button><button onClick={() => { setShowMenu(false); setOpenPanel('rules') }}><CircleHelp size={16} /> Rules</button><button onClick={onLeave}><LogOut size={16} /> Leave room</button></div>}
         </header>
 
         <section className="match-strip">
@@ -198,8 +199,16 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
           </motion.div>
         )}
       </AnimatePresence>
-      <AnimatePresence>{toast && <motion.div className="toast" initial={{ y: 35, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 35, opacity: 0 }} onAnimationComplete={() => window.setTimeout(() => setToast(''), 2600)}>{toast}</motion.div>}</AnimatePresence>
-      <AnimatePresence>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button onClick={() => setPendingAction(null)}>Close</button></div><div className="target-list">{liveRound?.players.filter((player) => player.user_id !== user?.id).map((player) => <button key={player.user_id} onClick={() => void addCard(pendingAction, player.user_id)}>{player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
+        <AnimatePresence>{toast && <motion.div className="toast" initial={{ y: 35, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 35, opacity: 0 }} onAnimationComplete={() => window.setTimeout(() => setToast(''), 2600)}>{toast}</motion.div>}</AnimatePresence>
+        <AnimatePresence>
+          {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenPanel(null)}>
+            <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
+              <div className="picker-heading"><div><span>{openPanel === 'players' ? 'AT THIS TABLE' : 'HOW TO PLAY'}</span><h2>{openPanel === 'players' ? 'Players' : 'Rules'}</h2></div><button onClick={() => setOpenPanel(null)}>Close</button></div>
+              {openPanel === 'players' ? <div className="info-list"><div className="info-player"><span className="mini-avatar" style={{ background: user?.user_metadata.avatar_color || '#57b8d7' }}>{String(user?.user_metadata.display_name || 'Y')[0]}</span><div><b>{user?.user_metadata.display_name || 'You'} (you)</b><small>Your score: {mine?.total_score ?? 0}</small></div></div>{visiblePlayers.map((player) => <div className="info-player" key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name}</b><small>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} pts` : player.state === 'stayed' ? `Stayed · ${player.roundScore} pts` : 'Busted'}</small></div><strong>{player.score}</strong></div>)}</div> : <div className="rules-copy"><p>Each player records the physical cards they receive.</p><p>Duplicate number cards bust a player unless they confirm the bust or use Second Chance.</p><p>Players can stay, then confirm their result. The host resolves disagreements and advances the table.</p><p>The first player to reach the target score wins.</p></div>}
+            </motion.section>
+          </motion.div>}
+        </AnimatePresence>
+        <AnimatePresence>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button onClick={() => setPendingAction(null)}>Close</button></div><div className="target-list">{liveRound?.players.filter((player) => player.user_id !== user?.id).map((player) => <button key={player.user_id} onClick={() => void addCard(pendingAction, player.user_id)}>{player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
     </div>
   )
 }

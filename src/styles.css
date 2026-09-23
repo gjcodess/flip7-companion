@@ -33,6 +33,15 @@ button { font: inherit; }
 .room-share-card .room-code { background: #fff7da; border-color: #132d67; color: #132d67; }
 .room-share-card .room-code span { color: #ed4f7e; }
 .room-share-card .room-code button { color: #132d67; }
+.room-menu { top: calc(100% - 1px); }
+.room-menu button { align-items: center; }
+.info-panel { max-height: min(70vh, 560px); }
+.info-list { display: grid; gap: 8px; margin-top: 16px; }
+.info-player { min-height: 52px; padding: 8px; display: flex; align-items: center; gap: 9px; border: 2px solid #132d67; background: #fffdf5; }
+.info-player > div { display: grid; gap: 2px; flex: 1; }
+.info-player small { font-size: 10px; }
+.rules-copy { margin-top: 16px; display: grid; gap: 10px; font-size: 13px; line-height: 1.45; }
+.rules-copy p { margin: 0; padding: 10px 12px; border-left: 4px solid #57b8d7; background: #fffdf5; }
 
 @media (max-width: 720px) {
   body { overflow-x: hidden; }
