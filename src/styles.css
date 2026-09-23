@@ -32,8 +32,20 @@ button { font: inherit; }
 .room-share-card { background: #57b8d7; }
 .room-share-card .room-code { background: #fff7da; border-color: #132d67; color: #132d67; }
 .room-share-card .room-code span { color: #ed4f7e; }
+.room-share-card .room-code b { color: #132d67; }
 .room-share-card .room-code button { color: #132d67; }
 .room-start-note { display: block; margin-top: 8px; color: #132d67; font-size: 11px; font-weight: 800; }
+.topbar { min-height: 78px; padding: 14px 18px; border-bottom: 3px solid rgba(255,224,92,.32); box-shadow: 0 3px 0 rgba(19,45,103,.22); z-index: 4; }
+.brand { display: flex; align-items: baseline; gap: 1px; letter-spacing: -2.5px; }
+.brand span { font-size: 24px; }
+.brand strong { font-size: 38px; }
+.room-code { min-height: 38px; padding: 6px 9px 6px 12px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.room-code b { color: #fff7da; font-size: 12px; letter-spacing: .1em; }
+.room-code .copy-room-code { width: 23px; height: 23px; border-radius: 50%; }
+.avatar { width: 39px; height: 39px; border: 3px solid #ffe05c; box-shadow: 2px 2px 0 #ed4f7e; }
+.back-button { min-height: 36px; padding: 0 8px 0 2px; border-radius: 6px; }
+.back-button:hover { background: rgba(255,255,255,.1); }
+.account-pill { min-height: 36px; padding: 0 10px; border: 2px solid rgba(255,224,92,.7); border-radius: 999px; background: rgba(255,255,255,.06); }
 
 button { line-height: 1; }
 .primary-wide, .secondary-wide { padding-block: 0; }
