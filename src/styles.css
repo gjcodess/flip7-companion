@@ -33,4 +33,5 @@ button { font: inherit; }
 .room-share-card .room-code { background: #fff7da; border-color: #132d67; color: #132d67; }
 .room-share-card .room-code span { color: #ed4f7e; }
 .room-share-card .room-code button { color: #132d67; }
+.host-controls .primary-wide { width: 100%; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
