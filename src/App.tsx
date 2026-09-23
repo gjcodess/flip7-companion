@@ -22,8 +22,10 @@ const demoPlayers: Player[] = [
   { id: 'chris', name: 'Chris', score: 65, roundScore: 18, state: 'stayed', color: '#57b8d7', cards: 3 },
 ]
 
-function CardArtwork({ card }: { card: Card }) {
-  if (card.image) return <img src={card.image} alt={card.label} />
+function CardArtwork({ card, lazy = false }: { card: Card; lazy?: boolean }) {
+  if (card.image) {
+    return <img src={card.image} alt={card.label} loading={lazy ? 'lazy' : 'eager'} decoding="async" />
+  }
   return <span className="generated-card-face" aria-label={`${card.label} modifier card`}><small>MODIFIER</small><b>{card.label}</b><small>NUMBER TOTAL</small></span>
 }
 
@@ -165,7 +167,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
               <div className="picker-heading"><div><span>PHYSICAL CARD</span><h2>What did you flip?</h2></div><button onClick={() => setPickerOpen(false)}>Close</button></div>
               <p>Select the card in front of you. The app never draws a card for you.</p>
               <div className="picker-grid">
-                {pickerCards.map((card) => <button key={card.id} onClick={() => addCard(card)} aria-label={`Record ${card.label}`}><CardArtwork card={card} /></button>)}
+                {pickerCards.map((card) => <button key={card.id} onClick={() => addCard(card)} aria-label={`Record ${card.label}`}><CardArtwork card={card} lazy /></button>)}
               </div>
             </motion.section>
           </motion.div>
