@@ -33,9 +33,10 @@ function CardArtwork({ card, lazy = false }: { card: Card; lazy?: boolean }) {
 
 function scoreTable(cards: Card[]) {
   const numberTotal = cards.filter((card) => card.kind === 'number').reduce((sum, card) => sum + (card.points ?? 0), 0)
+  const flipSevenBonus = cards.filter((card) => card.kind === 'number').length >= 7 ? 15 : 0
   const modifierTotal = cards.filter((card) => card.kind === 'modifier' && card.id !== 'modifier-x2').reduce((sum, card) => sum + (card.points ?? 0), 0)
   const subtotal = numberTotal + modifierTotal
-  return cards.some((card) => card.id === 'modifier-x2') ? subtotal * 2 : subtotal
+  return (cards.some((card) => card.id === 'modifier-x2') ? subtotal * 2 : subtotal) + flipSevenBonus
 }
 
 function errorMessage(caught: unknown, fallback: string) {
@@ -157,11 +158,12 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   }, [roomId, user?.id])
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
+  const numberCardCount = table.filter((card) => card.kind === 'number').length
   const score = mine?.round_score ?? localScore
+  const flipSevenBonus = mine?.flip_seven_bonus ?? (numberCardCount >= 7 ? 15 : 0)
   const headerScore = mine?.total_score ?? score
   const visiblePlayers: Player[] = liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status === 'frozen' ? 'stayed' : player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : demoPlayers
   const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
-  const numberCardCount = table.filter((card) => card.kind === 'number').length
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
   const organizeCards = () => {
     const rank = (card: Card) => card.kind === 'number' ? 0 : card.kind === 'action' ? 3 : card.id === 'modifier-x2' ? 2 : 1
@@ -383,7 +385,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
 
         <section className="table-area">
           <div className="section-kicker"><Crown size={16} /> MY TABLE <button className="organize-button" onClick={organizeCards} disabled={table.length < 2} title="Organize cards"><ListOrdered size={14} /> Organize</button></div>
-          <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b></div>
+          <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b>{flipSevenBonus > 0 && <small className="flip-seven-bonus">+15</small>}</div>
           <div className="card-table">
             <AnimatePresence initial={false}>
               <div className="card-rows">

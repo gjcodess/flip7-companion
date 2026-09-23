@@ -23,7 +23,7 @@ export type RoomSnapshot = { room: Room; members: Member[] }
 
 export type RoundCard = { id: string; round_player_id: string; card_code: string; sequence: number; voided_at: string | null }
 export type RoundPlayer = {
-  id: string; user_id: string; status: 'active' | 'stayed' | 'busted' | 'frozen'; round_score: number; total_score: number; confirmed_at: string | null
+  id: string; user_id: string; status: 'active' | 'stayed' | 'busted' | 'frozen'; round_score: number; total_score: number; flip_seven_bonus: number; confirmed_at: string | null
   profiles: { display_name: string; avatar_color: string } | null
 }
 export type LiveRound = { id: string; number: number; status: 'active' | 'review' | 'finalized'; players: RoundPlayer[]; cards: RoundCard[] }
@@ -109,7 +109,7 @@ export async function getLiveRound(roomId: string): Promise<LiveRound | null> {
   const { data: round, error: roundError } = await db.from('game_rounds').select('id, number, status').eq('room_id', roomId).order('number', { ascending: false }).limit(1).maybeSingle()
   if (roundError) throw new Error(roundError.message)
   if (!round) return null
-  const { data: players, error: playersError } = await db.from('round_players').select('id, user_id, status, round_score, total_score, confirmed_at, profiles(display_name, avatar_color)').eq('round_id', round.id)
+  const { data: players, error: playersError } = await db.from('round_players').select('id, user_id, status, round_score, total_score, flip_seven_bonus, confirmed_at, profiles(display_name, avatar_color)').eq('round_id', round.id)
   if (playersError) throw new Error(playersError.message)
   const ids = (players ?? []).map((player) => player.id)
   const { data: cards, error: cardsError } = ids.length
