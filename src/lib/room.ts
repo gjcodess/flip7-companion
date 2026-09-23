@@ -122,7 +122,7 @@ export async function getLiveRound(roomId: string): Promise<LiveRound | null> {
 export async function recordRoundCard(roomId: string, cardCode: string, targetUserId?: string, confirmBust = false) {
   const { data, error } = await client().rpc('record_round_card', { p_room_id: roomId, p_card_code: cardCode, p_target_user_id: targetUserId ?? null, p_confirm_bust: confirmBust, p_client_event_id: crypto.randomUUID() })
   if (error) throw new Error(error.message)
-  return data as { needs_bust_confirmation: boolean; card_code?: string }
+  return data as { needs_bust_confirmation: boolean; card_code?: string; card_id?: string }
 }
 
 export async function voidRoundCard(roomId: string, cardId: string) {

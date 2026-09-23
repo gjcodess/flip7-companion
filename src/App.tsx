@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Check, ChevronDown, CircleHelp, Copy, Crown, LogOut, Plus, Undo2, Redo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus, X } from 'lucide-react'
+import { Check, CircleHelp, Copy, Crown, ListOrdered, LogOut, Plus, Undo2, Redo2, Users, ArrowLeft, KeyRound, LoaderCircle, Play, UserRoundPlus, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, pickerCards, type Card } from './game/cards'
 import { supabase } from './lib/supabase'
@@ -108,6 +108,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [redoStack, setRedoStack] = useState<Card[]>([])
   const [lastEdit, setLastEdit] = useState<{ index: number; card: Card } | null>(null)
   const [lastRemoval, setLastRemoval] = useState<{ index: number; card: Card } | null>(null)
+  const [lastAdded, setLastAdded] = useState<{ card: Card; id?: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const actionLockRef = useRef(false)
   const refreshInFlightRef = useRef(false)
@@ -162,6 +163,16 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const canEditCards = roomId ? mine?.status === 'active' && mine.confirmed_at === null : !isStaying
   const numberCardCount = table.filter((card) => card.kind === 'number').length
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
+  const organizeCards = () => {
+    const rank = (card: Card) => card.kind === 'number' ? 0 : card.kind === 'action' ? 3 : card.id === 'modifier-x2' ? 2 : 1
+    const entries = table.map((card, index) => ({ card, id: tableCardIds[index], index }))
+    entries.sort((a, b) => rank(a.card) - rank(b.card) || (a.card.kind === 'number' && b.card.kind === 'number' ? (a.card.points ?? 0) - (b.card.points ?? 0) : (a.index - b.index)))
+    const cards = entries.map((entry) => entry.card)
+    const ids = entries.map((entry) => entry.id).filter((id): id is string => Boolean(id))
+    cardOrderRef.current = ids
+    setTable(cards)
+    if (roomId) setTableCardIds(ids)
+  }
 
   const addCard = async (card: Card, targetUserId?: string, confirmBust = false) => {
     if (submitting || actionLockRef.current) return
@@ -180,6 +191,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         if (existingId) await withTimeout(voidRoundCard(roomId, existingId))
         await withTimeout(refreshLiveRound(editingCardIndex ?? undefined)); setToast(editingCardIndex === null ? `${card.label} recorded` : `${card.label} updated`)
         setRedoStack([])
+        setLastAdded(editingCardIndex === null && (!targetUserId || targetUserId === user?.id) ? { card, id: result.card_id } : null)
         setLastEdit(editingCardIndex !== null && previousCard ? { index: editingCardIndex, card: previousCard } : null)
         setLastRemoval(null)
       } catch (caught) { setToast(errorMessage(caught, 'Could not record that card.')) } finally { setSubmitting(false); setPickerOpen(false); setPendingAction(null); actionLockRef.current = false }
@@ -196,6 +208,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
     setPickerOpen(false)
     setToast(editingCardIndex === null ? `${card.label} added to your table` : `${card.label} updated`)
     setRedoStack([])
+    setLastAdded(editingCardIndex === null ? { card } : null)
     setLastEdit(editingCardIndex !== null ? { index: editingCardIndex, card: table[editingCardIndex] } : null)
     setLastRemoval(null)
     setEditingCardIndex(null)
@@ -217,6 +230,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         setTable((current) => current.filter((_, cardIndex) => cardIndex !== index))
       }
       setRedoStack([])
+      setLastAdded(null)
       setLastRemoval({ index, card })
       setLastEdit(null)
       setToast('Card removed from your table')
@@ -259,6 +273,24 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       } catch (caught) { setToast(errorMessage(caught, 'Could not undo that removal.')) } finally { setSubmitting(false); actionLockRef.current = false }
       return
     }
+    if (lastAdded) {
+      const index = roomId && lastAdded.id ? tableCardIds.indexOf(lastAdded.id) : table.findIndex((card) => card === lastAdded.card)
+      if (index < 0) { setLastAdded(null); return }
+      const card = table[index]
+      const cardId = tableCardIds[index]
+      actionLockRef.current = true
+      setSubmitting(true)
+      try {
+        if (roomId) {
+          if (!cardId) throw new Error('This card is still loading. Try again in a moment.')
+          await withTimeout(voidRoundCard(roomId, cardId))
+          await withTimeout(refreshLiveRound())
+        } else setTable((current) => current.filter((_, cardIndex) => cardIndex !== index))
+        setRedoStack((current) => [...current, card])
+        setLastAdded(null)
+      } catch (caught) { setToast(errorMessage(caught, 'Could not undo that card.')) } finally { setSubmitting(false); actionLockRef.current = false }
+      return
+    }
     const index = table.length - 1
     const card = table[index]
     const cardId = tableCardIds[index]
@@ -273,6 +305,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         setTable((current) => current.slice(0, -1))
       }
       setRedoStack((current) => [...current, card])
+      setLastAdded(null)
       setLastEdit(null)
     } catch (caught) { setToast(errorMessage(caught, 'Could not undo that card.')) } finally { setSubmitting(false); actionLockRef.current = false }
   }
@@ -311,10 +344,12 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
     actionLockRef.current = true
     setSubmitting(true)
     try {
-      if (decision === 'stay') await withTimeout(stayInRound(roomId))
-      else await withTimeout(confirmRoundResult(roomId))
+      if (decision === 'stay') {
+        await withTimeout(stayInRound(roomId))
+        await withTimeout(confirmRoundResult(roomId))
+      } else await withTimeout(confirmRoundResult(roomId))
       await withTimeout(refreshLiveRound())
-      setToast(decision === 'stay' ? 'Stayed. Confirm your result when ready.' : 'Round result confirmed.')
+      setToast('Round result confirmed.')
     } catch (caught) { setToast(errorMessage(caught, 'Could not update your round.')) }
     finally { setSubmitting(false); actionLockRef.current = false }
   }
@@ -347,7 +382,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         </section>
 
         <section className="table-area">
-          <div className="section-kicker"><Crown size={16} /> MY TABLE</div>
+          <div className="section-kicker"><Crown size={16} /> MY TABLE <button className="organize-button" onClick={organizeCards} disabled={table.length < 2} title="Organize cards"><ListOrdered size={14} /> Organize</button></div>
           <div className="score-display"><span>ROUND SCORE</span><motion.b key={score} initial={{ scale: 1.25, color: '#ed4f7e' }} animate={{ scale: 1, color: '#132d67' }}>{score}</motion.b></div>
           <div className="card-table">
             <AnimatePresence initial={false}>
@@ -358,7 +393,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
                     const index = rowIndex * 5 + rowCardIndex
                     return <motion.button
                       className={`table-card ${card.kind}`}
-                      key={`${card.id}-${index}`}
+                      key={tableCardIds[index] || card.id}
                       layout
                       initial={{ opacity: 0, y: -32, rotate: rowCardIndex % 2 ? 3 : -3 }}
                       animate={{ opacity: 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
@@ -375,21 +410,21 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
                   </AnimatePresence>
                 </div>)}
               </div>
-                  <button className="add-card-card" disabled={submitting || !canEditCards} onClick={() => { if (submitting || !canEditCards) return; setPickerOpen(true) }} aria-label="Record a physical card"><Plus size={30} /></button>
+                  {!mine?.confirmed_at && !isStaying && <button className="add-card-card" disabled={submitting || !canEditCards} onClick={() => { if (submitting || !canEditCards) return; setPickerOpen(true) }} aria-label="Record a physical card"><Plus size={30} /></button>}
             </AnimatePresence>
           </div>
         </section>
 
         <section className="actions">
           <button className="secondary-action" disabled={table.length === 0 || submitting || !canEditCards} onClick={() => void undo()}><Undo2 size={19} /> Undo</button>
-          <button className={`stay-action ${isStaying || mine?.status !== 'active' ? 'confirmed' : ''}`} disabled={numberCardCount < 2 || submitting || mine?.confirmed_at !== null} onClick={() => void stay()}>{mine?.confirmed_at ? <><Check size={19} /> Confirmed</> : mine?.status && mine.status !== 'active' ? <><Check size={19} /> Confirm round</> : isStaying ? <><Check size={19} /> Staying</> : <>STAY / BANK <ChevronDown size={18} /></>}</button>
+          <button className={`stay-action ${isStaying || mine?.status !== 'active' ? 'confirmed' : ''}`} disabled={numberCardCount < 2 || submitting || mine?.confirmed_at !== null} onClick={() => void stay()}>{mine?.confirmed_at ? <>BANKED!</> : mine?.status && mine.status !== 'active' ? <>Confirm round</> : isStaying ? <>Staying</> : <>STAY / BANK</>}</button>
           <button className="secondary-action redo-action" disabled={redoStack.length === 0 || submitting || !canEditCards} onClick={() => void redo()}><Redo2 size={19} /> Redo</button>
         </section>
 
       </main>
       <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
 
-      <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>{stayPrompt === 'stay' ? 'STAY / BANK' : 'CONFIRM ROUND'}</span><h2>{stayPrompt === 'stay' ? 'Stay for this round?' : 'Confirm your round?'}</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">{stayPrompt === 'stay' ? 'You will stop recording cards until you confirm your round.' : 'Your score will be saved and you will wait for the other players.'}</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">{stayPrompt === 'stay' ? 'Confirm stay' : 'Confirm round'}</span></button></div></motion.section></motion.div>}</AnimatePresence>
+      <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>STAY / BANK</span><h2>Stay for this round?</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">Your score will be saved and your round will be confirmed. You will wait for the other players.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">Confirm stay</span></button></div></motion.section></motion.div>}</AnimatePresence>
 
       <AnimatePresence mode="wait">
         {pendingBustCard && <motion.div key="bust-confirm" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="card-picker card-actions-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>DUPLICATE CARD</span><h2>Confirm bust?</h2></div><button className="close-button" aria-label="Close bust confirmation" title="Close" onClick={() => setPendingBustCard(null)}><X size={19} /></button></div><p>You already have a {pendingBustCard.label}. Recording another one will bust your round and score zero.</p><div className="card-action-buttons"><button className="secondary-action" onClick={() => setPendingBustCard(null)}>Cancel</button><button className="danger-action" onClick={() => { const card = pendingBustCard; setPendingBustCard(null); void addCard(card, undefined, true) }}>Confirm bust</button></div></motion.section></motion.div>}
@@ -554,7 +589,7 @@ function RoomScreen({ user, code, leaveRoom }: { user: User; code: string; leave
   const pending = members.filter((member) => member.status === 'pending')
   const hostName = members.find((member) => member.user_id === room.host_user_id)?.profiles?.display_name || 'Host'
   const quitRoom = async () => { setBusy(true); try { await leaveRoomRpc(room.id); leaveRoom() } catch (caught) { setError(errorMessage(caught, 'Could not leave this room.')) } finally { setBusy(false) } }
-  if (room.status === 'active' && me?.status === 'approved') return <TablePreview roomCode={room.code} targetScore={room.target_score} hostName={hostName} hostUserId={room.host_user_id} roomId={room.id} user={user} onLeave={() => void quitRoom()} />
+  if ((room.status === 'active' || room.status === 'round_review') && me?.status === 'approved') return <TablePreview roomCode={room.code} targetScore={room.target_score} hostName={hostName} hostUserId={room.host_user_id} roomId={room.id} user={user} onLeave={() => void quitRoom()} />
   const approve = async (member: string) => { setBusy(true); try { await approveRoomMember(room.id, member); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not approve that player.') } finally { setBusy(false) } }
   const begin = async () => { setBusy(true); try { await startMatch(room.id); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not start the match.') } finally { setBusy(false) } }
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
