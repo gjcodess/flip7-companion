@@ -35,7 +35,7 @@ button { font: inherit; }
 .room-share-card .room-code b { color: #132d67; }
 .room-share-card .room-code button { color: #132d67; }
 .room-start-note { display: block; margin-top: 8px; color: #132d67; font-size: 11px; font-weight: 800; }
-.topbar { min-height: 78px; padding: 14px 18px; border-bottom: 3px solid rgba(255,224,92,.32); box-shadow: 0 3px 0 rgba(19,45,103,.22); z-index: 4; }
+.topbar { min-height: 78px; padding: 14px 18px; position: sticky; top: 0; border-bottom: 3px solid rgba(255,224,92,.32); box-shadow: 0 3px 0 rgba(19,45,103,.22); z-index: 10; }
 .brand { display: flex; align-items: baseline; gap: 1px; letter-spacing: -2.5px; }
 .brand span { font-size: 24px; }
 .brand strong { font-size: 38px; }
@@ -91,7 +91,7 @@ button { line-height: 1; }
 .host-controls .primary-wide { width: 100%; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 .button-content { display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
-.brand-logo { display: block; width: 78px; height: 42px; object-fit: contain; mix-blend-mode: screen; }
+.brand-logo { display: block; width: 96px; height: 48px; object-fit: contain; mix-blend-mode: screen; }
 .landing-page { min-height: 100vh; overflow: hidden; color: #fff7da; background: #101d4d; }
 .landing-nav { width: min(1180px, calc(100% - 40px)); min-height: 78px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
 .landing-logo { width: 112px; height: 54px; object-fit: contain; mix-blend-mode: screen; }
@@ -139,5 +139,6 @@ button { line-height: 1; }
 .landing-page { background-color: #101d4d; }
 .lobby-main { background-image: radial-gradient(rgba(19,45,103,.045) 1.25px, transparent 1.25px); background-size: 18px 18px; }
 .table-area { background-image: linear-gradient(105deg, transparent 0 47%, rgba(255,224,92,.22) 47% 48%, transparent 48%), radial-gradient(rgba(19,45,103,.04) 1.25px, transparent 1.25px); background-size: auto, 18px 18px; }
+.app-shell, body { overflow-x: clip; }
 .landing-promo-card, .landing-promo-player { width: min(60%, 400px); left: 50%; right: auto; top: 50%; bottom: auto; }
 @media (max-width: 720px) { .landing-promo-card, .landing-promo-player { width: 70%; left: 50%; right: auto; top: 50%; bottom: auto; } }
