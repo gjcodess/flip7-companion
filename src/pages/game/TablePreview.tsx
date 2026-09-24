@@ -36,12 +36,15 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const originalTableRef = useRef<{ cards: Card[]; ids: string[] } | null>(null)
   const [isOrganized, setIsOrganized] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerQueued, setPickerQueued] = useState(false)
+  const [cardDialogClosing, setCardDialogClosing] = useState(false)
+  const [targetDialogClosing, setTargetDialogClosing] = useState(false)
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
   const [editingCardIndex, setEditingCardIndex] = useState<number | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showHomePrompt, setShowHomePrompt] = useState(false)
   const [openPanel, setOpenPanel] = useState<'players' | 'rules' | null>(null)
-  const [toast, setToast] = useState('')
+  const [, setToast] = useState('')
   const [isStaying, setIsStaying] = useState(false)
   const [stayPrompt, setStayPrompt] = useState<'stay' | 'confirm' | null>(null)
   const [liveRound, setLiveRound] = useState<LiveRound | null>(null)
@@ -53,10 +56,12 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const [lastAdded, setLastAdded] = useState<{ card: Card; id?: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const actionLockRef = useRef(false)
+  const dialogLockRef = useRef(false)
+  const cardSelectionRef = useRef(false)
   const refreshInFlightRef = useRef(false)
   useEffect(() => {
-    if (!pickerOpen && !submitting && !pendingAction) actionLockRef.current = false
-  }, [pickerOpen, submitting, pendingAction])
+    if (!pickerOpen && !pickerQueued && !submitting && !pendingAction) actionLockRef.current = false
+  }, [pickerOpen, pickerQueued, submitting, pendingAction])
   const refreshLiveRound = async (preserveCardIndex?: number) => {
     if (!roomId || refreshInFlightRef.current) return
     refreshInFlightRef.current = true
@@ -117,6 +122,40 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const isHost = hostUserId === user?.id
   const playerName = mine?.profiles?.display_name || String(user?.user_metadata.display_name || 'Player').trim() || 'Player'
   const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
+  const cardInteractionLocked = submitting || pickerOpen || pickerQueued || selectedCardIndex !== null || cardDialogClosing || pendingAction !== null || targetDialogClosing
+  const closePicker = () => {
+    cardSelectionRef.current = false
+    dialogLockRef.current = true
+    setCardDialogClosing(true)
+    setPickerOpen(false)
+    setPickerQueued(false)
+    setEditingCardIndex(null)
+  }
+  const closeCardActions = () => {
+    dialogLockRef.current = true
+    setCardDialogClosing(true)
+    setSelectedCardIndex(null)
+  }
+  const openPicker = () => {
+    if (dialogLockRef.current || cardInteractionLocked) return
+    dialogLockRef.current = true
+    setEditingCardIndex(null)
+    setPickerOpen(true)
+  }
+  const beginCardEdit = () => {
+    if (selectedCardIndex === null || cardDialogClosing) return
+    dialogLockRef.current = true
+    setCardDialogClosing(true)
+    setEditingCardIndex(selectedCardIndex)
+    setSelectedCardIndex(null)
+    setPickerQueued(true)
+  }
+  const closePendingAction = () => {
+    cardSelectionRef.current = false
+    dialogLockRef.current = true
+    setTargetDialogClosing(true)
+    setPendingAction(null)
+  }
   const resetOrganization = () => {
     setIsOrganized(false)
     originalTableRef.current = null
@@ -154,12 +193,21 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   }
 
   const addCard = async (card: Card, targetUserId?: string) => {
-    if (submitting || actionLockRef.current) return
+    if (submitting || actionLockRef.current || cardSelectionRef.current) return
     if (roomId) {
-      if (card.kind === 'action' && !targetUserId) { setPendingAction(card); setPickerOpen(false); return }
+      if (card.kind === 'action' && !targetUserId) {
+        cardSelectionRef.current = true
+        dialogLockRef.current = true
+        setCardDialogClosing(true)
+        setPendingAction(card)
+        setPickerOpen(false)
+        return
+      }
+      cardSelectionRef.current = true
       actionLockRef.current = true
       setSubmitting(true)
       // Close the picker immediately so rapid taps cannot queue another save.
+      setCardDialogClosing(true)
       setPickerOpen(false)
       try {
         resetOrganization()
@@ -176,10 +224,11 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
         setLastAdded(editingCardIndex === null && (!targetUserId || targetUserId === user?.id) ? { card, id: result.card_id } : null)
         setLastEdit(editingCardIndex !== null && previousCard ? { index: editingCardIndex, card: previousCard, id: result.card_id } : null)
         setLastRemoval(null)
-      } catch (caught) { setToast(errorMessage(caught, 'Could not record that card.')) } finally { setSubmitting(false); setPickerOpen(false); setPendingAction(null); actionLockRef.current = false }
+      } catch (caught) { setToast(errorMessage(caught, 'Could not record that card.')) } finally { setSubmitting(false); setPickerOpen(false); setPendingAction(null); actionLockRef.current = false; cardSelectionRef.current = false }
       setEditingCardIndex(null)
       return
     }
+    cardSelectionRef.current = true
     resetOrganization()
     const duplicate = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
     setTable((current) => editingCardIndex === null ? [...current, card] : current.map((entry, index) => index === editingCardIndex ? card : entry))
@@ -192,13 +241,14 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     setLastEdit(editingCardIndex !== null ? { index: editingCardIndex, card: table[editingCardIndex] } : null)
     setLastRemoval(null)
     setEditingCardIndex(null)
+    cardSelectionRef.current = false
   }
 
   const removeCard = async (index: number) => {
     const cardVoided = isVoidedCard(index)
     if ((!canEditCards && !cardVoided) || submitting || actionLockRef.current) return
     actionLockRef.current = true
-    setSelectedCardIndex(null)
+    closeCardActions()
     const card = table[index]
     setSubmitting(true)
     try {
@@ -374,7 +424,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <OpponentStrip players={visiblePlayers} />
 
-      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} playerName={playerName} isHost={isHost} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards && !isVoidedCard(index)) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
+      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} interactionLocked={cardInteractionLocked} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} playerName={playerName} isHost={isHost} onOrganize={organizeCards} onOpenPicker={openPicker} onSelectCard={(index, card) => { if (dialogLockRef.current || cardInteractionLocked) return; if (!canEditCards && !isVoidedCard(index)) { setToast(`${card.label} is locked after you stay.`); return } dialogLockRef.current = true; setSelectedCardIndex(index) }} />
 
         <GameControls isHost={isHost} allPlayersSettled={allPlayersSettled} submitting={submitting} canEditCards={canEditCards} hasCardsOrRemoval={table.length > 0 || Boolean(lastRemoval)} hasRedo={redoStack.length > 0} isStaying={isStaying} busted={busted} frozen={frozen} numberCardCount={numberCardCount} playerStatus={mine?.status} confirmedAt={mine?.confirmed_at} onNextRound={() => void proceedToNextRound()} onUndo={() => void undo()} onStay={() => void stay()} onRedo={() => void redo()} />
 
@@ -383,11 +433,11 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>STAY / BANK</span><h2>Stay for this round?</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">Your score will be saved and your round will be confirmed. You will wait for the other players.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">Confirm stay</span></button></div></motion.section></motion.div>}</AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setSelectedCardIndex(null)}><CardActionsPanel card={table[selectedCardIndex]} cardVoided={isVoidedCard(selectedCardIndex)} submitting={submitting} onClose={() => setSelectedCardIndex(null)} onEdit={() => { const index = selectedCardIndex; setSelectedCardIndex(null); setEditingCardIndex(index); window.setTimeout(() => setPickerOpen(true), 0) }} onRemove={() => void removeCard(selectedCardIndex)} /></motion.div>}
+      <AnimatePresence mode="wait" onExitComplete={() => { setCardDialogClosing(false); if (pickerQueued) { setPickerQueued(false); setPickerOpen(true) } else if (!pendingAction) dialogLockRef.current = false }}>
+        {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeCardActions}><CardActionsPanel card={table[selectedCardIndex]} cardVoided={isVoidedCard(selectedCardIndex)} submitting={submitting} onClose={closeCardActions} onEdit={beginCardEdit} onRemove={() => void removeCard(selectedCardIndex)} /></motion.div>}
         {pickerOpen && (
-          <motion.div key="card-picker" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => { setPickerOpen(false); setEditingCardIndex(null); setPendingAction(null) }}>
-            <CardPickerPanel submitting={submitting} onClose={() => { setPickerOpen(false); setEditingCardIndex(null); setPendingAction(null) }} onSelect={(card) => void addCard(card)} />
+          <motion.div key="card-picker" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closePicker}>
+            <CardPickerPanel submitting={submitting} onClose={closePicker} onSelect={(card) => void addCard(card)} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -409,7 +459,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
             </motion.section>
           </motion.div>}
         </AnimatePresence>
-        <AnimatePresence>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button className="close-button" aria-label="Close action target" title="Close" onClick={() => setPendingAction(null)}><X size={19} /></button></div><div className="target-list">{liveRound?.players.map((player) => <button key={player.user_id} onClick={() => void addCard(pendingAction, player.user_id)}>{player.user_id === user?.id ? `${player.profiles?.display_name || 'Player'} (me)` : player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
+        <AnimatePresence onExitComplete={() => { setTargetDialogClosing(false); if (!pendingAction) dialogLockRef.current = false }}>{pendingAction && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closePendingAction}><motion.section className="card-picker" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button className="close-button" aria-label="Close action target" title="Close" onClick={closePendingAction}><X size={19} /></button></div><div className="target-list">{liveRound?.players.map((player) => <button key={player.user_id} disabled={submitting || actionLockRef.current} onClick={() => { cardSelectionRef.current = false; void addCard(pendingAction, player.user_id) }}>{player.user_id === user?.id ? `${player.profiles?.display_name || 'Player'} (me)` : player.profiles?.display_name || 'Player'}</button>)}</div></motion.section></motion.div>}</AnimatePresence>
     </div>
   )
 }
