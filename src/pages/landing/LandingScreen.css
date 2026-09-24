@@ -38,7 +38,7 @@
 .landing-top-links a { padding: 8px 0; color: rgba(255, 247, 218, .84); font-size: 12px; font-weight: 900; letter-spacing: .02em; text-decoration: none; transition: color .16s ease, transform .16s ease; }
 .landing-top-links a:hover { color: #ffe05c; transform: translateY(-1px); }
 
-.landing-signin { min-height: 44px; padding: 0 20px; border: 3px solid #132d67; border-radius: 999px; background: #ffe05c; box-shadow: 3px 3px 0 #ed4f7e; color: #132d67; font-size: 13px; font-weight: 1000; cursor: pointer; transition: background .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.landing-signin { min-height: 44px; padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; border: 3px solid #132d67; border-radius: 999px; background: #ffe05c; box-shadow: 3px 3px 0 #ed4f7e; color: #132d67; font-size: 13px; font-weight: 1000; text-decoration: none; cursor: pointer; transition: background .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .landing-signin:hover { background: #ed4f7e; box-shadow: 3px 3px 0 #132d67; color: #fff7da; transform: translate(-1px, -1px); }
 .landing-mobile-toggle, .landing-mobile-menu { display: none; }
 .landing-mobile-backdrop { display: none; }
@@ -79,7 +79,7 @@
 .landing-promo-card { width: min(60%, 390px); transform: rotate(7deg); z-index: 2; }
 .landing-promo-player { width: min(56%, 360px); transform: rotate(-7deg); z-index: 1; }
 
-.landing-how { position: relative; width: 100%; margin: 0; padding: 68px max(24px, calc((100vw - 1400px) / 2 + 40px)) 90px; background: #fff7da; }
+.landing-how { position: relative; width: 100%; margin: 0; padding: 68px max(24px, calc((100vw - 1400px) / 2 + 40px)) 90px; scroll-margin-top: 90px; background: #fff7da; }
 .landing-how::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .2; background-image: radial-gradient(#132d67 1.5px, transparent 1.5px); background-size: 18px 18px; mask-image: linear-gradient(180deg, rgba(0, 0, 0, .05), rgba(0, 0, 0, .45)); }
 .landing-how > * { position: relative; z-index: 1; }
 .landing-how h2 { margin: 10px 0 30px; color: #132d67; font-size: clamp(34px, 5vw, 58px); letter-spacing: -2px; }
@@ -117,7 +117,7 @@
 
 .landing-page > main { animation: page-content-in .52s ease-out both; }
 @keyframes page-content-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-html.landing-active { scrollbar-color: #57b8d7 #132d67; scrollbar-width: thin; }
+html.landing-active { scroll-behavior: smooth; scrollbar-color: #57b8d7 #132d67; scrollbar-width: thin; }
 html.landing-active::-webkit-scrollbar { width: 12px; }
 html.landing-active::-webkit-scrollbar-track { background: #132d67; }
 html.landing-active::-webkit-scrollbar-thumb { border: 3px solid #132d67; border-radius: 999px; background: #57b8d7; }
@@ -148,7 +148,7 @@ html.landing-active::-webkit-scrollbar-thumb:hover { background: #ffe05c; }
   .landing-mobile-menu nav { display: grid; gap: 7px; }
   .landing-mobile-menu nav a { min-height: 48px; display: flex; align-items: center; padding: 0 14px; border: 2px solid #d4c690; border-radius: 5px; background: #fffdf5; box-shadow: 2px 2px 0 rgba(19, 45, 103, .12); color: #132d67; font-size: 14px; font-weight: 1000; text-decoration: none; }
   .landing-mobile-menu nav a:hover { border-color: #132d67; background: #ffe05c; box-shadow: 2px 2px 0 #132d67; }
-  .landing-mobile-signin { min-height: 52px; border: 3px solid #132d67; border-radius: 6px; background: #ed4f7e; box-shadow: 3px 3px 0 #132d67; color: #fff7da; font-size: 14px; font-weight: 1000; cursor: pointer; }
+  .landing-mobile-signin { min-height: 52px; display: flex; align-items: center; justify-content: center; border: 3px solid #132d67; border-radius: 6px; background: #ed4f7e; box-shadow: 3px 3px 0 #132d67; color: #fff7da; font-size: 14px; font-weight: 1000; text-decoration: none; cursor: pointer; }
   .landing-mobile-signin:hover { background: #ffe05c; color: #132d67; }
   .landing-hero { min-height: 0; }
   .landing-hero-grid { width: 100%; min-height: 0; padding: 48px 20px 30px; }
