@@ -1,16 +1,5 @@
-@media (min-width: 721px) { .landing-copy h1 { white-space: nowrap; font-size: clamp(44px, 6vw, 76px); } }
-@media (min-width: 721px) { .landing-nav { width: 100%; padding-inline: clamp(20px, 3vw, 42px); } }
-.landing-art { min-height: 540px; }
-.landing-promo-card { width: min(58%, 400px); left: 4%; right: auto; top: 8%; transform: rotate(5deg); }
-.landing-promo-player { width: min(48%, 340px); right: 2%; bottom: 0; transform: rotate(-5deg); }
-@media (max-width: 720px) { .landing-art { min-height: 320px; margin-top: 18px; }.landing-promo-card { width: 68%; left: 1%; right: auto; top: 0; }.landing-promo-player { width: 53%; right: 0; bottom: 0; } }
-@media (prefers-reduced-motion: reduce) { .landing-page * { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
-.landing-art::before { inset: 8% 6%; background: radial-gradient(circle at center, rgba(87,184,215,.42), rgba(87,184,215,.1) 44%, transparent 72%); }
-.landing-art::before { display: none; }
-.landing-promo-glow { position: absolute; z-index: 0; left: 50%; top: 50%; width: min(72%, 470px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(87,184,215,.45), rgba(87,184,215,.12) 45%, transparent 72%); filter: blur(2px); }
-.app-shell, .landing-page { background-image: radial-gradient(rgba(255,224,92,.12) 1.5px, transparent 1.5px); background-size: 18px 18px; }
+.app-shell { background-image: radial-gradient(rgba(255,224,92,.12) 1.5px, transparent 1.5px); background-size: 18px 18px; }
 .game-shell { background-image: radial-gradient(rgba(19,45,103,.035) 1.25px, transparent 1.25px); background-size: 18px 18px; }
-.landing-page { background-color: #101d4d; }
 .lobby-main { background-image: radial-gradient(rgba(19,45,103,.045) 1.25px, transparent 1.25px); background-size: 18px 18px; }
 .table-area { background-image: linear-gradient(105deg, transparent 0 47%, rgba(255,224,92,.22) 47% 48%, transparent 48%), radial-gradient(rgba(19,45,103,.04) 1.25px, transparent 1.25px); background-size: auto, 18px 18px; }
 .app-shell, body { overflow-x: clip; }
@@ -21,5 +10,3 @@
 .desktop-marquee > div { display: none; }
 .desktop-marquee { z-index: 1; }
 .game-shell { z-index: 2; }
-.landing-promo-card, .landing-promo-player { width: min(60%, 400px); left: 50%; right: auto; top: 50%; bottom: auto; }
-@media (max-width: 720px) { .landing-promo-card, .landing-promo-player { width: 70%; left: 50%; right: auto; top: 50%; bottom: auto; } }
