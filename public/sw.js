@@ -1,5 +1,5 @@
-const CACHE_NAME = 'flip7-static-v2'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/favicon.png', '/assets/flip7-title-logo.png', '/assets/promo-1.png', '/assets/promo-2.png']
+const CACHE_NAME = 'flip7-static-v4'
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/flip7-companion-icon-512-rounded.png', '/assets/flip7-title-logo.png', '/assets/promo-1.png', '/assets/promo-2.png']
 const CARD_ARTWORK = [
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
 ].map((number) => `/cards/${number}.png`).concat([

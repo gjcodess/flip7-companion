@@ -7,5 +7,5 @@
   "display": "standalone",
   "background_color": "#fff7da",
   "theme_color": "#132d67",
-  "icons": [{ "src": "/assets/favicon.png", "type": "image/png", "sizes": "any", "purpose": "any maskable" }]
+  "icons": [{ "src": "/assets/flip7-companion-icon-512-rounded.png", "type": "image/png", "sizes": "512x512", "purpose": "any" }]
 }
