@@ -125,7 +125,16 @@ export async function getLiveRound(roomId: string): Promise<LiveRound | null> {
   const secondChanceEvents = new Set((sourceEvents ?? [])
     .filter((event) => event.event_type === 'card_recorded' && event.payload?.second_chance_used === true)
     .map((event) => event.id))
-  const normalizedCards = rawCards.map((card) => ({
+  const { data: correctionEvents, error: correctionEventsError } = await db
+    .from('game_events')
+    .select('payload')
+    .eq('round_id', round.id)
+    .eq('event_type', 'card_corrected')
+  if (correctionEventsError) throw new Error(correctionEventsError.message)
+  const correctedCardIds = new Set((correctionEvents ?? [])
+    .map((event) => event.payload?.card_id)
+    .filter((id): id is string => typeof id === 'string'))
+  const normalizedCards = rawCards.filter((card) => !correctedCardIds.has(card.id)).map((card) => ({
     ...card,
     voided_by_second_chance: card.voided_at !== null && card.source_event_id !== null && secondChanceEvents.has(card.source_event_id),
   }))

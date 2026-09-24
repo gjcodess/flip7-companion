@@ -194,7 +194,8 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   }
 
   const removeCard = async (index: number) => {
-    if (!canEditCards || submitting || actionLockRef.current) return
+    const cardVoided = isVoidedCard(index)
+    if ((!canEditCards && !cardVoided) || submitting || actionLockRef.current) return
     actionLockRef.current = true
     setSelectedCardIndex(null)
     const card = table[index]
@@ -372,7 +373,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <OpponentStrip players={visiblePlayers} />
 
-      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
+      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards && !isVoidedCard(index)) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
 
         <GameControls isHost={isHost} allPlayersSettled={allPlayersSettled} submitting={submitting} canEditCards={canEditCards} hasCardsOrRemoval={table.length > 0 || Boolean(lastRemoval)} hasRedo={redoStack.length > 0} isStaying={isStaying} busted={busted} frozen={frozen} numberCardCount={numberCardCount} playerStatus={mine?.status} confirmedAt={mine?.confirmed_at} onNextRound={() => void proceedToNextRound()} onUndo={() => void undo()} onStay={() => void stay()} onRedo={() => void redo()} />
 
@@ -382,7 +383,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>STAY / BANK</span><h2>Stay for this round?</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">Your score will be saved and your round will be confirmed. You will wait for the other players.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">Confirm stay</span></button></div></motion.section></motion.div>}</AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setSelectedCardIndex(null)}><CardActionsPanel card={table[selectedCardIndex]} submitting={submitting} onClose={() => setSelectedCardIndex(null)} onEdit={() => { const index = selectedCardIndex; setSelectedCardIndex(null); setEditingCardIndex(index); window.setTimeout(() => setPickerOpen(true), 0) }} onRemove={() => void removeCard(selectedCardIndex)} /></motion.div>}
+        {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setSelectedCardIndex(null)}><CardActionsPanel card={table[selectedCardIndex]} cardVoided={isVoidedCard(selectedCardIndex)} submitting={submitting} onClose={() => setSelectedCardIndex(null)} onEdit={() => { const index = selectedCardIndex; setSelectedCardIndex(null); setEditingCardIndex(index); window.setTimeout(() => setPickerOpen(true), 0) }} onRemove={() => void removeCard(selectedCardIndex)} /></motion.div>}
         {pickerOpen && (
           <motion.div key="card-picker" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => { setPickerOpen(false); setEditingCardIndex(null); setPendingAction(null) }}>
             <CardPickerPanel submitting={submitting} onClose={() => { setPickerOpen(false); setEditingCardIndex(null); setPendingAction(null) }} onSelect={(card) => void addCard(card)} />
