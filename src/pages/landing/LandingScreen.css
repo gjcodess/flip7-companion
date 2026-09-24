@@ -108,6 +108,7 @@
 .landing-footer-top { min-height: 300px; display: grid; grid-template-columns: minmax(250px, .9fr) 1.3fr; align-items: start; gap: 80px; padding: 62px 0 52px; }
 .landing-footer-brand img { width: 235px; height: auto; object-fit: contain; mix-blend-mode: screen; }
 .landing-footer-brand p { max-width: 330px; margin: 18px 0 0; color: rgba(255, 247, 218, .72); font-size: 15px; line-height: 1.55; }
+.landing-footer-brand .landing-footer-disclaimer { margin-top: 14px; color: rgba(255, 247, 218, .58); font-size: 12px; line-height: 1.45; }
 .landing-footer-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; padding-top: 7px; }
 .landing-footer-links div { display: grid; align-content: start; gap: 17px; }
 .landing-footer-links h3 { margin: 0 0 10px; color: #ffe05c; font-size: 11px; letter-spacing: .1em; }
