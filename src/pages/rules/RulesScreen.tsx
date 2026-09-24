@@ -36,12 +36,12 @@ export function RulesScreen() {
       <div className="landing-nav-inner">
         <a href="/" className="rules-brand"><img className="landing-logo" src="/assets/flip7-title-logo.png" alt="Flip7 Companion" /></a>
         <nav className="landing-top-links" aria-label="Primary navigation">
-          <a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/#landing-how">FAQ</a>
+          <a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/faq">FAQ</a>
         </nav>
         <a href="/lobby" className="landing-signin">Sign in</a>
         <button className="landing-mobile-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="rules-mobile-menu" aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} onClick={() => setMobileMenuOpen((open) => !open)}>{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
-      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="rules-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Rules</a><a href="/#landing-how" onClick={closeMobileMenu}>FAQ</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>Sign in</a></div></>}
+      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="rules-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Rules</a><a href="/faq" onClick={closeMobileMenu}>FAQ</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>Sign in</a></div></>}
     </header>
 
     <main className="rules-main">
