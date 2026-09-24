@@ -24,7 +24,7 @@ export function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: st
   }
 
   return <div className="app-shell lobby-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell lobby-main">
-    <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> Exit</button></header>
+    <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill room-leave-button" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> Exit</button></header>
     <section className="auth-hero compact"><span className="eyebrow">WELCOME TO THE TABLE</span><h1>Ready when the deck is.</h1><p>Create a room for your group, or enter a code from the host.</p></section>
     <section className="home-mode-switch" aria-label="Choose how to enter a game"><button className={homeMode === 'join' ? 'selected' : ''} onClick={() => setHomeMode('join')}><Users size={16} /> Join a game</button><button className={homeMode === 'host' ? 'selected' : ''} onClick={() => setHomeMode('host')}><Play size={16} /> Host a game</button></section>
     <section className="lobby-grid">

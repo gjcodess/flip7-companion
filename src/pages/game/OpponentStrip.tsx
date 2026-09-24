@@ -1,3 +1,4 @@
+import { Crown } from 'lucide-react'
 import { pointLabel } from '../../lib/app-utils'
 
 export type Player = {
@@ -17,7 +18,7 @@ export function OpponentStrip({ players }: { players: Player[] }) {
     {players.map((player) => (
       <article className={`opponent ${player.state}`} key={player.id}>
         <div className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</div>
-        <div className="opponent-copy"><b>{player.name}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'frozen' ? `Freezed · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</span></div>
+        <div className="opponent-copy"><b>{player.name} {player.isHost && <Crown className="host-crown" size={14} aria-label="Lobby host" />}</b><span>{player.state === 'active' ? `${player.cards} cards · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'stayed' ? `Banked · ${player.roundScore} ${pointLabel(player.roundScore)}` : player.state === 'frozen' ? `Freezed · ${player.roundScore} ${pointLabel(player.roundScore)}` : 'Busted'}</span></div>
         <strong><small>Total pts:</small> <b>{player.score}</b></strong>
       </article>
     ))}

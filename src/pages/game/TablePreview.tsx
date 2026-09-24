@@ -115,6 +115,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:') && card.voided_at === null).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
   const canEditCards = roomId ? mine?.status === 'busted' || (mine?.status === 'active' && mine.confirmed_at === null) : !isStaying
   const isHost = hostUserId === user?.id
+  const playerName = mine?.profiles?.display_name || String(user?.user_metadata.display_name || 'Player').trim() || 'Player'
   const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
   const resetOrganization = () => {
     setIsOrganized(false)
@@ -373,7 +374,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <OpponentStrip players={visiblePlayers} />
 
-      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards && !isVoidedCard(index)) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
+      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} playerName={playerName} isHost={isHost} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards && !isVoidedCard(index)) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
 
         <GameControls isHost={isHost} allPlayersSettled={allPlayersSettled} submitting={submitting} canEditCards={canEditCards} hasCardsOrRemoval={table.length > 0 || Boolean(lastRemoval)} hasRedo={redoStack.length > 0} isStaying={isStaying} busted={busted} frozen={frozen} numberCardCount={numberCardCount} playerStatus={mine?.status} confirmedAt={mine?.confirmed_at} onNextRound={() => void proceedToNextRound()} onUndo={() => void undo()} onStay={() => void stay()} onRedo={() => void redo()} />
 

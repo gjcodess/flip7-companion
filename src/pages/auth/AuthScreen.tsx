@@ -44,13 +44,16 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
           <button type="button" className={mode === 'guest' ? 'selected' : ''} onClick={() => setMode('guest')}>Play as guest</button>
           <button type="button" className={mode !== 'guest' ? 'selected' : ''} onClick={() => setMode('sign-in')}>Account</button>
         </div>
+        <div className="auth-benefit" aria-live="polite">
+          {mode === 'guest' ? <UserRoundPlus size={18} aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
+          <div><b>{mode === 'guest' ? 'Quick start, no account needed.' : 'Keep your profile across sessions.'}</b><span>{mode === 'guest' ? 'Enter a display name and start playing right away.' : 'Sign in securely and use the same profile whenever you return.'}</span></div>
+        </div>
         {mode !== 'sign-in' && <label>Display name<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={24} placeholder="Your name at the table" required /></label>}
         {mode !== 'guest' && <><label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" required /></label><label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={6} placeholder="At least 6 characters" required /></label></>}
         {error && <p className="form-error">{error}</p>}
         <button className="primary-wide" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : mode === 'guest' ? <UserRoundPlus /> : <KeyRound />} {mode === 'guest' ? 'Start as a guest' : mode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
         {mode !== 'guest' && <button type="button" className="text-action" onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}>{mode === 'sign-in' ? 'Need an account? Sign up' : 'Already have an account? Sign in'}</button>}
       </form>
-      <footer className="lobby-footer">The app records your physical cards. It never deals for you.</footer>
     </main>
     <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
     <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => window.location.assign('/')} />}</AnimatePresence>
