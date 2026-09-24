@@ -97,6 +97,7 @@ async function withTimeout<T>(task: Promise<T>, message = 'The request took too 
 function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', hostUserId, roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; hostUserId?: string; roomId?: string; user?: User; onLeave?: () => void }) {
   const [table, setTable] = useState<Card[]>(roomId ? [] : demoTable)
   const [tableCardIds, setTableCardIds] = useState<string[]>([])
+  const [tableVoidedIds, setTableVoidedIds] = useState<string[]>([])
   const cardOrderRef = useRef<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
@@ -111,7 +112,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   const [pendingAction, setPendingAction] = useState<Card | null>(null)
   const [localBusted, setLocalBusted] = useState(false)
   const [redoStack, setRedoStack] = useState<Card[]>([])
-  const [lastEdit, setLastEdit] = useState<{ index: number; card: Card } | null>(null)
+  const [lastEdit, setLastEdit] = useState<{ index: number; card: Card; id?: string } | null>(null)
   const [lastRemoval, setLastRemoval] = useState<{ index: number; card: Card } | null>(null)
   const [lastAdded, setLastAdded] = useState<{ card: Card; id?: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -132,8 +133,13 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       const orderedMineCards = previousOrder.length
         ? [...mineCards].sort((a, b) => (previousOrder.indexOf(a.id) === -1 ? Number.MAX_SAFE_INTEGER : previousOrder.indexOf(a.id)) - (previousOrder.indexOf(b.id) === -1 ? Number.MAX_SAFE_INTEGER : previousOrder.indexOf(b.id)))
         : mineCards
-      const cards = orderedMineCards.map((card) => cardFromCode(card.card_code)).filter((card): card is Card => Boolean(card))
-      const cardIds = orderedMineCards.map((card) => card.id)
+      const visibleMineCards = orderedMineCards.filter((card) => card.voided_at === null || card.voided_by_second_chance)
+      const cards = visibleMineCards.map((card) => cardFromCode(card.card_code)).filter((card): card is Card => Boolean(card))
+      const cardIds = visibleMineCards.map((card) => card.id)
+      const voidedIds = visibleMineCards.filter((card) => card.voided_by_second_chance).map((card) => card.id)
+      const availableSecondChance = mine?.second_chance_count ?? 0
+      const secondChanceIds = visibleMineCards.filter((card) => card.card_code === 'action:second_chance').map((card) => card.id)
+      const consumedSecondChanceIds = secondChanceIds.slice(0, Math.max(0, secondChanceIds.length - availableSecondChance))
       if (preserveCardIndex !== undefined && preserveCardIndex < cards.length) {
         const replacementCard = cards.pop()
         const replacementId = cardIds.pop()
@@ -142,6 +148,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
       cardOrderRef.current = cardIds
       setTable(cards)
       setTableCardIds(cardIds)
+      setTableVoidedIds([...voidedIds, ...consumedSecondChanceIds])
     } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally { refreshInFlightRef.current = false }
   }
   useEffect(() => { if (!roomId) return; void refreshLiveRound(); const timer = window.setInterval(() => { void refreshLiveRound(); void heartbeatRoom(roomId) }, 15000); return () => window.clearInterval(timer) }, [roomId, user?.id])
@@ -162,14 +169,15 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   }, [roomId, user?.id])
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
-  const numberCardCount = table.filter((card) => card.kind === 'number').length
+  const isVoidedCard = (index: number) => Boolean(roomId && tableVoidedIds.includes(tableCardIds[index]))
+  const numberCardCount = table.filter((card, index) => card.kind === 'number' && !isVoidedCard(index)).length
   const busted = mine?.status === 'busted' || localBusted
   const frozen = mine?.status === 'frozen'
   const score = mine?.round_score ?? (busted ? 0 : localScore)
   const flipSevenBonus = mine?.flip_seven_bonus ?? (numberCardCount >= 7 ? 15 : 0)
   const headerScore = mine?.total_score ?? score
-  const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:')).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
-  const canEditCards = roomId ? (mine?.status === 'active' || mine?.status === 'busted') && mine.confirmed_at === null : !isStaying
+  const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:') && card.voided_at === null).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
+  const canEditCards = roomId ? mine?.status === 'busted' || (mine?.status === 'active' && mine.confirmed_at === null) : !isStaying
   const isHost = hostUserId === user?.id
   const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
@@ -204,7 +212,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
         await withTimeout(refreshLiveRound(editingCardIndex ?? undefined)); setToast(editingCardIndex === null ? `${card.label} recorded` : `${card.label} updated`)
         setRedoStack([])
         setLastAdded(editingCardIndex === null && (!targetUserId || targetUserId === user?.id) ? { card, id: result.card_id } : null)
-        setLastEdit(editingCardIndex !== null && previousCard ? { index: editingCardIndex, card: previousCard } : null)
+        setLastEdit(editingCardIndex !== null && previousCard ? { index: editingCardIndex, card: previousCard, id: result.card_id } : null)
         setLastRemoval(null)
       } catch (caught) { setToast(errorMessage(caught, 'Could not record that card.')) } finally { setSubmitting(false); setPickerOpen(false); setPendingAction(null); actionLockRef.current = false }
       setEditingCardIndex(null)
@@ -248,9 +256,10 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
   }
 
   const undo = async () => {
-    if (!canEditCards || submitting || actionLockRef.current || table.length === 0) return
-    if (lastEdit && table[lastEdit.index]) {
-      const index = lastEdit.index
+    if (!canEditCards || submitting || actionLockRef.current || (table.length === 0 && !lastRemoval)) return
+    if (lastEdit) {
+      const index = roomId && lastEdit.id ? tableCardIds.indexOf(lastEdit.id) : lastEdit.index
+      if (index < 0 || !table[index]) { setLastEdit(null); return }
       const previousCard = lastEdit.card
       const currentCardId = tableCardIds[index]
       actionLockRef.current = true
@@ -414,12 +423,13 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
                   <AnimatePresence initial={false}>
                   {row.map((card, rowCardIndex) => {
                     const index = rowIndex * 5 + rowCardIndex
+                    const cardVoided = isVoidedCard(index)
                     return <motion.button
-                      className={`table-card ${card.kind}`}
+                      className={`table-card ${card.kind} ${cardVoided ? 'card-voided' : ''}`}
                       key={tableCardIds[index] || card.id}
                       layout
                       initial={{ opacity: 0, y: -32, rotate: rowCardIndex % 2 ? 3 : -3 }}
-                      animate={{ opacity: 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
+                      animate={{ opacity: cardVoided ? .42 : 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
                       exit={{ opacity: 0, y: -28 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                       onClick={() => {
@@ -440,7 +450,7 @@ function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Gle
 
         <section className="actions">
           {isHost && allPlayersSettled && <button className="next-round-button" disabled={submitting} onClick={() => void proceedToNextRound()}>{submitting ? <LoaderCircle className="spin" size={17} /> : <Play size={17} />} Proceed to next round</button>}
-          <button className="secondary-action" disabled={table.length === 0 || submitting || !canEditCards} onClick={() => void undo()}><Undo2 size={19} /> Undo</button>
+          <button className="secondary-action" disabled={(table.length === 0 && !lastRemoval) || submitting || !canEditCards} onClick={() => void undo()}><Undo2 size={19} /> Undo</button>
           <button className={`stay-action ${isStaying || busted || frozen || (mine?.status != null && mine.status !== 'active') ? 'confirmed' : ''} ${busted ? 'bust-state' : ''} ${frozen ? 'frozen-state' : ''}`} disabled={busted || frozen || numberCardCount < 2 || submitting || mine?.confirmed_at !== null} onClick={() => void stay()}>{busted ? <>BUST!</> : frozen ? <>FREEZED!</> : mine?.confirmed_at ? <>BANKED!</> : mine?.status && mine.status !== 'active' ? <>Confirm round</> : isStaying ? <>Staying</> : <>STAY / BANK</>}</button>
           <button className="secondary-action redo-action" disabled={redoStack.length === 0 || submitting || !canEditCards} onClick={() => void redo()}><Redo2 size={19} /> Redo</button>
         </section>
