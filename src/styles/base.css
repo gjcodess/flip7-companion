@@ -1,0 +1,16 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #132d67; background: #101d4d; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #101d4d; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+button { font: inherit; }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 480px) minmax(0, 1fr); background: #ed4f7e; overflow-x: hidden; }
+.game-shell { position: relative; min-height: 100vh; background: #fff7da; border-inline: 5px solid #132d67; box-shadow: 0 0 0 5px #ffe05c, 0 16px 60px rgba(19,45,103,.34); display: flex; flex-direction: column; }
+.desktop-marquee { color: #ffe05c; padding: 64px 40px; font-size: clamp(42px, 7vw, 92px); font-weight: 1000; line-height: .78; letter-spacing: -5px; text-shadow: 4px 4px 0 #132d67; overflow: hidden; background-image: radial-gradient(#ffe05c 2px, transparent 2px); background-size: 18px 18px; }
+.desktop-marquee.right { display: flex; justify-content: end; text-align: right; background-color: #57b8d7; color: #fff7da; }
+.topbar { min-height: 73px; background: #132d67; color: #fff7da; padding: 13px 17px; display: flex; align-items: center; gap: 13px; position: relative; }
+.brand { color: #ffe05c; font-size: 25px; font-weight: 1000; letter-spacing: -2px; transform: skew(-8deg); text-shadow: 2px 2px 0 #ed4f7e; }
+.brand strong { font-size: 39px; line-height: 0; }
+.room-code { display: flex; align-items: center; gap: 7px; margin-left: auto; border: 2px solid #ffe05c; border-radius: 999px; padding: 6px 7px 6px 11px; font-size: 11px; letter-spacing: .09em; }
+.room-code span { color: #ffe05c; font-size: 9px; font-weight: 800; }.room-code button,.avatar { border: 0; background: transparent; color: inherit; display: grid; place-items: center; cursor: pointer; }.room-code .copy-room-code { padding: 1px; }.room-code button:hover { color: #ffe05c; }
+.avatar { width: 36px; height: 36px; background: #97c844; border: 2px solid #fff7da; border-radius: 50%; color: #132d67; font-weight: 900; }
+.room-menu { position: absolute; z-index: 5; top: 63px; right: 14px; width: 190px; background: #fff7da; border: 3px solid #132d67; box-shadow: 5px 5px 0 #ffe05c; padding: 10px; }.room-menu-title { color: #ed4f7e; font-size: 9px; font-weight: 1000; letter-spacing: .13em; padding: 2px 4px 7px; }.room-menu .room-code { min-height: 34px; margin: 0; padding: 5px 7px 5px 9px; border-color: #132d67; background: #fffdf5; color: #132d67; box-shadow: 2px 2px 0 rgba(19,45,103,.25); }.room-menu .room-code span { color: #ed4f7e; }.room-menu .room-code b { color: #132d67; }.room-menu .room-code button { width: 22px; padding: 0; color: #132d67; }.room-menu-divider { height: 2px; margin: 10px 0 4px; background: #dacb9f; }.room-menu button { display: flex; gap: 9px; align-items: center; width: 100%; border: 0; background: transparent; padding: 10px; color: #132d67; text-align: left; cursor: pointer; }.room-menu button:hover { background: #ffe05c; }
