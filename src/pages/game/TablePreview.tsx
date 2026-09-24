@@ -135,8 +135,9 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     }
     originalTableRef.current = { cards: [...table], ids: [...tableCardIds] }
     const rank = (card: Card) => card.kind === 'number' ? 0 : card.id === 'modifier-x2' ? 1 : card.kind === 'modifier' ? 2 : 3
-    const entries = table.map((card, index) => ({ card, id: tableCardIds[index], index }))
+    const entries = table.map((card, index) => ({ card, id: tableCardIds[index], index, voided: isVoidedCard(index) }))
     entries.sort((a, b) => {
+      if (a.voided !== b.voided) return Number(a.voided) - Number(b.voided)
       const rankDifference = rank(a.card) - rank(b.card)
       if (rankDifference !== 0) return rankDifference
       if (a.card.kind === 'number' && b.card.kind === 'number') return (a.card.points ?? 0) - (b.card.points ?? 0)
