@@ -9,3 +9,6 @@
 .room-share-card .room-code b { color: #132d67; }
 .room-share-card .room-code button { color: #132d67; }
 .room-start-note { display: block; margin-top: 8px; color: #132d67; font-size: 11px; font-weight: 800; }
+.active-player { display: flex; align-items: center; gap: 8px; min-height: 39px; padding: 8px 10px; border: 2px solid #132d67; border-radius: 4px; background: #fff7da; }
+.active-player span { color: #4d5c79; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.active-player b { overflow: hidden; color: #132d67; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Check, Copy, Menu, X } from 'lucide-react'
 import { LandingFooter } from '../landing/LandingFooter'
 import './ContactScreen.css'
 
 export function ContactScreen() {
   const [navScrolled, setNavScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const email = 'glennjoshuacorpus@gmail.com'
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 8)
@@ -15,6 +17,25 @@ export function ContactScreen() {
   }, [])
 
   const closeMobileMenu = () => setMobileMenuOpen(false)
+  const copyEmail = async () => {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(email)
+      else {
+        const input = document.createElement('textarea')
+        input.value = email
+        input.style.position = 'fixed'
+        input.style.opacity = '0'
+        document.body.append(input)
+        input.select()
+        document.execCommand('copy')
+        input.remove()
+      }
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   return <div className="landing-page contact-page">
     <header className={`landing-nav ${navScrolled ? 'scrolled' : ''}`}>
@@ -29,10 +50,10 @@ export function ContactScreen() {
 
     <main className="contact-main">
       <section className="contact-hero">
-        <div className="contact-hero-inner"><span className="eyebrow">FLIP7 COMPANION · CONTACT</span><h1>We’re getting<br /><em>in touch.</em></h1><p>We’re preparing a simple way for you to reach the Flip7 Companion team.</p></div>
+        <div className="contact-hero-inner"><span className="eyebrow">FLIP7 COMPANION · CONTACT</span><h1>Need a hand?<br /><em>Get in touch.</em></h1><p>Questions, feedback, or something at the table that needs a closer look? Send an email.</p></div>
         <div className="contact-hero-cards" aria-hidden="true"><img src="/cards/SECOND CHANCE.png" alt="" /><img src="/cards/3.png" alt="" /><img src="/cards/+4.png" alt="" /></div>
       </section>
-      <section className="contact-status"><span className="eyebrow">CONTACT PAGE</span><h2>Coming soon.</h2><p>Support and contact options are on their way. Until then, the FAQs and Rules have answers for the most common table questions.</p><div className="contact-actions"><a href="/faq">Browse FAQs</a><a href="/rules">Read the rules</a></div></section>
+      <section className="contact-status"><span className="eyebrow">CONTACT PAGE</span><h2>Coming soon.</h2><p>Our built-in contact form is on its way. For now, email us directly at:</p><div className="contact-email"><a href={`mailto:${email}`}>{email}</a><button type="button" onClick={() => void copyEmail()} aria-label="Copy email address">{copied ? <Check size={17} /> : <Copy size={17} />}{copied ? 'Copied!' : 'Copy email'}</button></div><span className="contact-copy-status" role="status" aria-live="polite">{copied ? 'Email address copied to your clipboard.' : ''}</span><div className="contact-actions"><a href="/faq">Browse FAQs</a><a href="/rules">Read the rules</a></div></section>
     </main>
     <LandingFooter isRulesPage />
   </div>

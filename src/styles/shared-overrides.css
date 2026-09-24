@@ -16,7 +16,10 @@
 .room-code { min-height: 38px; padding: 6px 9px 6px 12px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
 .room-code b { color: #fff7da; font-size: 12px; letter-spacing: .1em; }
 .room-code .copy-room-code { width: 23px; height: 23px; border-radius: 50%; }
-.avatar { width: 39px; height: 39px; border: 3px solid #ffe05c; box-shadow: 2px 2px 0 #ed4f7e; }
+.avatar { width: 42px; height: 42px; position: relative; border: 3px solid #ffe05c; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #d8ed8d 0 13%, #97c844 14% 100%); box-shadow: 3px 3px 0 #ed4f7e, inset 0 0 0 2px #132d67; color: #132d67; font-size: 14px; font-weight: 1000; letter-spacing: -.04em; text-shadow: 0 1px 0 rgba(255,255,255,.45); }
+.avatar::after { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(19,45,103,.36); border-radius: inherit; pointer-events: none; }
+.avatar:hover { filter: brightness(1.06); transform: rotate(-4deg) translateY(-1px); }
+.avatar:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #ed4f7e, inset 0 0 0 2px #132d67; }
 .topbar > .avatar { margin-left: auto; }
 .back-button { min-height: 36px; padding: 0 8px 0 2px; border-radius: 6px; }
 .back-button:hover { background: rgba(255,255,255,.1); }
@@ -130,3 +133,11 @@ button { line-height: 1; }
 .home-prompt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .home-prompt-actions button { min-height: 44px; }
 .home-prompt-actions .secondary-action { border: 3px solid #132d67; background: #fffdf5; color: #132d67; font-weight: 900; }
+.account-coming-soon { padding-bottom: 24px; }
+.account-coming-soon .home-prompt-copy { max-width: 380px; margin: 12px 0 18px; }
+.account-coming-soon-actions .primary-wide { width: 100%; min-height: 48px; }
+.field-warning-modal { padding-bottom: 24px; }
+.field-warning-copy { display: flex; align-items: center; gap: 10px; margin: 14px 0 18px; color: #132d67; }
+.field-warning-copy svg { flex: 0 0 auto; color: #ed4f7e; }
+.field-warning-copy p { margin: 0; font-size: 13px; line-height: 1.45; }
+.field-warning-actions .primary-wide { width: 100%; min-height: 48px; }
