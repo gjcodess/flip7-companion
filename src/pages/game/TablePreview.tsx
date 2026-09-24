@@ -21,10 +21,11 @@ const demoPlayers: Player[] = [
 
 function scoreTable(cards: Card[]) {
   const numberTotal = cards.filter((card) => card.kind === 'number').reduce((sum, card) => sum + (card.points ?? 0), 0)
-  const flipSevenBonus = cards.filter((card) => card.kind === 'number').length >= 7 ? 15 : 0
+  const uniqueNumberCount = new Set(cards.filter((card) => card.kind === 'number').map((card) => card.id)).size
+  const flipSevenBonus = uniqueNumberCount >= 7 ? 15 : 0
   const modifierTotal = cards.filter((card) => card.kind === 'modifier' && card.id !== 'modifier-x2').reduce((sum, card) => sum + (card.points ?? 0), 0)
-  const subtotal = numberTotal + modifierTotal
-  return (cards.some((card) => card.id === 'modifier-x2') ? subtotal * 2 : subtotal) + flipSevenBonus
+  const numberTotalWithMultiplier = cards.some((card) => card.id === 'modifier-x2') ? numberTotal * 2 : numberTotal
+  return numberTotalWithMultiplier + modifierTotal + flipSevenBonus
 }
 
 export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', hostUserId, roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; hostUserId?: string; roomId?: string; user?: User; onLeave?: () => void }) {
@@ -32,6 +33,8 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const [tableCardIds, setTableCardIds] = useState<string[]>([])
   const [tableVoidedIds, setTableVoidedIds] = useState<string[]>([])
   const cardOrderRef = useRef<string[]>([])
+  const originalTableRef = useRef<{ cards: Card[]; ids: string[] } | null>(null)
+  const [isOrganized, setIsOrganized] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
   const [editingCardIndex, setEditingCardIndex] = useState<number | null>(null)
@@ -113,15 +116,39 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const canEditCards = roomId ? mine?.status === 'busted' || (mine?.status === 'active' && mine.confirmed_at === null) : !isStaying
   const isHost = hostUserId === user?.id
   const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
+  const resetOrganization = () => {
+    setIsOrganized(false)
+    originalTableRef.current = null
+    cardOrderRef.current = []
+  }
+
   const organizeCards = () => {
-    const rank = (card: Card) => card.kind === 'number' ? 0 : card.kind === 'action' ? 3 : card.id === 'modifier-x2' ? 2 : 1
+    if (isOrganized) {
+      const original = originalTableRef.current
+      if (original) {
+        setTable(original.cards)
+        if (roomId) setTableCardIds(original.ids)
+        cardOrderRef.current = original.ids
+      }
+      setIsOrganized(false)
+      return
+    }
+    originalTableRef.current = { cards: [...table], ids: [...tableCardIds] }
+    const rank = (card: Card) => card.kind === 'number' ? 0 : card.id === 'modifier-x2' ? 1 : card.kind === 'modifier' ? 2 : 3
     const entries = table.map((card, index) => ({ card, id: tableCardIds[index], index }))
-    entries.sort((a, b) => rank(a.card) - rank(b.card) || (a.card.kind === 'number' && b.card.kind === 'number' ? (a.card.points ?? 0) - (b.card.points ?? 0) : (a.index - b.index)))
+    entries.sort((a, b) => {
+      const rankDifference = rank(a.card) - rank(b.card)
+      if (rankDifference !== 0) return rankDifference
+      if (a.card.kind === 'number' && b.card.kind === 'number') return (a.card.points ?? 0) - (b.card.points ?? 0)
+      if (a.card.kind === 'modifier' && b.card.kind === 'modifier') return (a.card.points ?? 0) - (b.card.points ?? 0)
+      return a.index - b.index
+    })
     const cards = entries.map((entry) => entry.card)
     const ids = entries.map((entry) => entry.id).filter((id): id is string => Boolean(id))
     cardOrderRef.current = ids
     setTable(cards)
     if (roomId) setTableCardIds(ids)
+    setIsOrganized(true)
   }
 
   const addCard = async (card: Card, targetUserId?: string) => {
@@ -133,6 +160,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       // Close the picker immediately so rapid taps cannot queue another save.
       setPickerOpen(false)
       try {
+        resetOrganization()
         const previousCard = editingCardIndex === null ? null : table[editingCardIndex]
         const existingId = editingCardIndex === null ? null : tableCardIds[editingCardIndex]
         const duplicateSelection = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
@@ -150,6 +178,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       setEditingCardIndex(null)
       return
     }
+    resetOrganization()
     const duplicate = card.kind === 'number' && table.some((onTable, index) => index !== editingCardIndex && onTable.id === card.id)
     setTable((current) => editingCardIndex === null ? [...current, card] : current.map((entry, index) => index === editingCardIndex ? card : entry))
     if (duplicate) setLocalBusted(true)
@@ -170,6 +199,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     const card = table[index]
     setSubmitting(true)
     try {
+      resetOrganization()
       if (roomId) {
         const cardId = tableCardIds[index]
         if (!cardId) throw new Error('This card is still loading. Try again in a moment.')
@@ -197,6 +227,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       actionLockRef.current = true
       setSubmitting(true)
       try {
+        resetOrganization()
         if (roomId) {
           if (!currentCardId) throw new Error('This card is still loading. Try again in a moment.')
           await withTimeout(voidRoundCard(roomId, currentCardId))
@@ -214,6 +245,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       actionLockRef.current = true
       setSubmitting(true)
       try {
+        resetOrganization()
         if (roomId) {
           await withTimeout(recordRoundCard(roomId, cardCode(card)))
           await withTimeout(refreshLiveRound(index))
@@ -232,6 +264,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       actionLockRef.current = true
       setSubmitting(true)
       try {
+        resetOrganization()
         if (roomId) {
           if (!cardId) throw new Error('This card is still loading. Try again in a moment.')
           await withTimeout(voidRoundCard(roomId, cardId))
@@ -248,6 +281,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     actionLockRef.current = true
     setSubmitting(true)
     try {
+      resetOrganization()
       if (roomId) {
         if (!cardId) throw new Error('This card is still loading. Try again in a moment.')
         await withTimeout(voidRoundCard(roomId, cardId))
@@ -267,6 +301,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     actionLockRef.current = true
     setSubmitting(true)
     try {
+      resetOrganization()
       if (roomId) {
         await withTimeout(recordRoundCard(roomId, cardCode(card)))
         await withTimeout(refreshLiveRound())
@@ -288,8 +323,8 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
     actionLockRef.current = true
     setSubmitting(true)
     try {
+      resetOrganization()
       await withTimeout(finalizeRound(roomId))
-      cardOrderRef.current = []
       await withTimeout(refreshLiveRound())
       setToast('Next round started.')
     } catch (caught) { setToast(errorMessage(caught, 'Could not start the next round.')) }
@@ -336,7 +371,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <OpponentStrip players={visiblePlayers} />
 
-        <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
+      <GameTable table={table} tableCardIds={tableCardIds} isVoidedCard={isVoidedCard} score={score} flipSevenBonus={flipSevenBonus} busted={busted} frozen={frozen} submitting={submitting} canEditCards={canEditCards} confirmedAt={mine?.confirmed_at} isStaying={isStaying} isOrganized={isOrganized} onOrganize={organizeCards} onOpenPicker={() => setPickerOpen(true)} onSelectCard={(index, card) => { if (!canEditCards) { setToast(`${card.label} is locked after you stay.`); return } setSelectedCardIndex(index) }} />
 
         <GameControls isHost={isHost} allPlayersSettled={allPlayersSettled} submitting={submitting} canEditCards={canEditCards} hasCardsOrRemoval={table.length > 0 || Boolean(lastRemoval)} hasRedo={redoStack.length > 0} isStaying={isStaying} busted={busted} frozen={frozen} numberCardCount={numberCardCount} playerStatus={mine?.status} confirmedAt={mine?.confirmed_at} onNextRound={() => void proceedToNextRound()} onUndo={() => void undo()} onStay={() => void stay()} onRedo={() => void redo()} />
 
