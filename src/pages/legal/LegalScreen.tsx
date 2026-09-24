@@ -86,9 +86,10 @@ export function LegalScreen({ kind }: { kind: LegalKind }) {
   const [navScrolled, setNavScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isPrivacy = kind === 'privacy'
-  const title = isPrivacy ? 'Data privacy policy' : 'Terms & conditions'
+  const title = isPrivacy ? 'Data Privacy Policy' : 'Terms & Conditions'
   const eyebrow = isPrivacy ? 'FLIP7 COMPANION · YOUR DATA' : 'FLIP7 COMPANION · PLAY FAIR'
   const intro = isPrivacy ? 'A clear look at the information the companion uses to keep your table connected.' : 'The simple ground rules for using Flip7 Companion and keeping every table moving.'
+  const heroCards = isPrivacy ? ['0', 'SECOND CHANCE', '+2'] : ['12', 'FREEZE', '+6']
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 8)
@@ -103,15 +104,15 @@ export function LegalScreen({ kind }: { kind: LegalKind }) {
     <header className={`landing-nav ${navScrolled ? 'scrolled' : ''}`}>
       <div className="landing-nav-inner">
         <a href="/" className="legal-brand"><img className="landing-logo" src="/assets/flip7-title-logo.png" alt="Flip7 Companion" /></a>
-        <nav className="landing-top-links" aria-label="Primary navigation"><a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/faq">FAQ</a></nav>
+        <nav className="landing-top-links" aria-label="Primary navigation"><a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a></nav>
         <a href="/lobby" className="landing-signin">PLAY!</a>
         <button className="landing-mobile-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="legal-mobile-menu" aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} onClick={() => setMobileMenuOpen((open) => !open)}>{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
-      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="legal-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Rules</a><a href="/faq" onClick={closeMobileMenu}>FAQ</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>PLAY!</a></div></>}
+      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="legal-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Game Rules</a><a href="/faq" onClick={closeMobileMenu}>Frequently Asked Questions</a><a href="/privacy" onClick={closeMobileMenu}>Data Privacy Policy</a><a href="/terms" onClick={closeMobileMenu}>Terms &amp; Conditions</a><a href="/contact" onClick={closeMobileMenu}>Contact Us</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>PLAY!</a></div></>}
     </header>
 
     <main className="legal-main">
-      <section className="legal-hero"><div className="legal-hero-inner"><span className="eyebrow">{eyebrow}</span><h1>{isPrivacy ? <>Your data,<br /><em>kept clear.</em></> : <>Play fair.<br /><em>Keep it moving.</em></>}</h1><p>{intro}</p><div className="legal-meta"><span>Updated September 2026</span><span>{isPrivacy ? 'Privacy' : 'Terms'}</span></div></div></section>
+      <section className="legal-hero"><div className="legal-hero-inner"><span className="eyebrow">{eyebrow}</span><h1>{isPrivacy ? <>Your data,<br /><em>kept clear.</em></> : <>Play fair.<br /><em>Keep it moving.</em></>}</h1><p>{intro}</p><div className="legal-meta"><span>Updated September 2026</span><span>{isPrivacy ? 'Privacy' : 'Terms'}</span></div></div><div className="legal-hero-cards" aria-hidden="true">{heroCards.map((card) => <img key={card} src={`/cards/${card}.png`} alt="" />)}</div></section>
       <div className="legal-content">
         <aside className="legal-index" aria-label={`${title} sections`}><span className="eyebrow">ON THIS PAGE</span><strong>{title}</strong><nav>{isPrivacy ? <><a href="#overview">Overview</a><a href="#information">Information we collect</a><a href="#use">How we use information</a><a href="#sharing">When information is shared</a><a href="#retention">Storage and retention</a><a href="#choices">Your choices</a><a href="#children">Children's privacy</a><a href="#changes">Changes</a></> : <><a href="#acceptance">Acceptance</a><a href="#service">The companion service</a><a href="#accounts">Accounts and rooms</a><a href="#fair-play">Fair play</a><a href="#content">Your game data</a><a href="#availability">Availability</a><a href="#responsibility">Gameplay responsibility</a><a href="#updates">Updates</a></>}</nav></aside>
         <article className="legal-document">{isPrivacy ? <PrivacyPolicy /> : <TermsConditions />}<div className="legal-back-links"><a href="/faq">Have a question? Visit the FAQs</a><a href="/rules">Read the game rules</a></div></article>

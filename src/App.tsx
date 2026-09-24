@@ -8,6 +8,7 @@ import { LandingScreen } from './pages/landing/LandingScreen'
 import { RulesScreen } from './pages/rules/RulesScreen'
 import { FAQScreen } from './pages/faq/FAQScreen'
 import { LegalScreen } from './pages/legal/LegalScreen'
+import { ContactScreen } from './pages/contact/ContactScreen'
 import { AuthScreen } from './pages/auth/AuthScreen'
 import { HomeScreen } from './pages/home/HomeScreen'
 import { RoomScreen } from './pages/room/RoomScreen'
@@ -18,6 +19,7 @@ export default function App() {
   const isFAQPage = window.location.pathname === '/faq'
   const isPrivacyPage = window.location.pathname === '/privacy'
   const isTermsPage = window.location.pathname === '/terms'
+  const isContactPage = window.location.pathname === '/contact'
   const [showLanding, setShowLanding] = useState(() => window.location.pathname === '/' || window.location.pathname === '/landing')
   const [roomCode, setRoomCode] = useState(() => roomCodeFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get('room'))
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function App() {
   if (isFAQPage) return <FAQScreen />
   if (isPrivacyPage) return <LegalScreen kind="privacy" />
   if (isTermsPage) return <LegalScreen kind="terms" />
+  if (isContactPage) return <ContactScreen />
   if (!supabase) return <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
   if (showLanding) return <LandingScreen onStart={enterApp} />
   if (user === undefined) return <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>

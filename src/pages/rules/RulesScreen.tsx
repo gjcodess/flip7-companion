@@ -36,12 +36,12 @@ export function RulesScreen() {
       <div className="landing-nav-inner">
         <a href="/" className="rules-brand"><img className="landing-logo" src="/assets/flip7-title-logo.png" alt="Flip7 Companion" /></a>
         <nav className="landing-top-links" aria-label="Primary navigation">
-          <a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/faq">FAQ</a>
+          <a href="/">Home</a><a href="/#landing-how">How it Works</a><a href="/rules">Rules</a><a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a>
         </nav>
         <a href="/lobby" className="landing-signin">PLAY!</a>
         <button className="landing-mobile-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="rules-mobile-menu" aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} onClick={() => setMobileMenuOpen((open) => !open)}>{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
-      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="rules-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Rules</a><a href="/faq" onClick={closeMobileMenu}>FAQ</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>PLAY!</a></div></>}
+      {mobileMenuOpen && <><button className="landing-mobile-backdrop" type="button" aria-label="Close navigation menu" onClick={closeMobileMenu} /><div id="rules-mobile-menu" className="landing-mobile-menu"><nav aria-label="Mobile navigation"><a href="/" onClick={closeMobileMenu}>Home</a><a href="/#landing-how" onClick={closeMobileMenu}>How it Works</a><a href="/rules" onClick={closeMobileMenu}>Game Rules</a><a href="/faq" onClick={closeMobileMenu}>Frequently Asked Questions</a><a href="/privacy" onClick={closeMobileMenu}>Data Privacy Policy</a><a href="/terms" onClick={closeMobileMenu}>Terms &amp; Conditions</a><a href="/contact" onClick={closeMobileMenu}>Contact Us</a></nav><a href="/lobby" className="landing-mobile-signin" onClick={closeMobileMenu}>PLAY!</a></div></>}
     </header>
 
     <main className="rules-main">
@@ -52,6 +52,7 @@ export function RulesScreen() {
           <p>Track the cards in front of you, score every round, and be the first player to reach the target.</p>
           <div className="rules-hero-badges"><span>200 point target</span><span>7-card bonus</span><span>Duplicate = bust</span></div>
         </div>
+        <div className="rules-hero-cards" aria-hidden="true"><img src="/cards/12.png" alt="" /><img src="/cards/+10.png" alt="" /><img src="/cards/x2.png" alt="" /></div>
       </section>
 
       <div className="rules-content">
