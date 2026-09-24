@@ -27,6 +27,7 @@ export type RoundPlayer = {
   profiles: { display_name: string; avatar_color: string } | null
 }
 export type LiveRound = { id: string; number: number; status: 'active' | 'review' | 'finalized'; players: RoundPlayer[]; cards: RoundCard[] }
+export type RoundScore = { roundNumber: number; userId: string; score: number }
 
 function client() {
   if (!supabase) throw new Error('Supabase configuration is missing.')
@@ -125,11 +126,47 @@ export async function getLiveRound(roomId: string): Promise<LiveRound | null> {
   const secondChanceEvents = new Set((sourceEvents ?? [])
     .filter((event) => event.event_type === 'card_recorded' && event.payload?.second_chance_used === true)
     .map((event) => event.id))
-  const normalizedCards = rawCards.map((card) => ({
+  const { data: correctionEvents, error: correctionEventsError } = await db
+    .from('game_events')
+    .select('payload')
+    .eq('round_id', round.id)
+    .eq('event_type', 'card_corrected')
+  if (correctionEventsError) throw new Error(correctionEventsError.message)
+  const correctedCardIds = new Set((correctionEvents ?? [])
+    .map((event) => event.payload?.card_id)
+    .filter((id): id is string => typeof id === 'string'))
+  const normalizedCards = rawCards.filter((card) => !correctedCardIds.has(card.id)).map((card) => ({
     ...card,
     voided_by_second_chance: card.voided_at !== null && card.source_event_id !== null && secondChanceEvents.has(card.source_event_id),
   }))
   return { ...round, players: players as unknown as RoundPlayer[], cards: normalizedCards }
+}
+
+export async function getRoundScores(roomId: string): Promise<RoundScore[]> {
+  const db = client()
+  const { data: rounds, error: roundsError } = await db
+    .from('game_rounds')
+    .select('id, number')
+    .eq('room_id', roomId)
+    .eq('status', 'finalized')
+    .order('number')
+  if (roundsError) throw new Error(roundsError.message)
+
+  const finalizedRounds = rounds ?? []
+  if (!finalizedRounds.length) return []
+
+  const roundNumberById = new Map(finalizedRounds.map((round) => [round.id, round.number]))
+  const { data: players, error: playersError } = await db
+    .from('round_players')
+    .select('round_id, user_id, round_score')
+    .in('round_id', finalizedRounds.map((round) => round.id))
+  if (playersError) throw new Error(playersError.message)
+
+  return (players ?? []).map((player) => ({
+    roundNumber: roundNumberById.get(player.round_id) ?? 0,
+    userId: player.user_id,
+    score: player.round_score,
+  })).sort((a, b) => a.roundNumber - b.roundNumber)
 }
 
 export async function recordRoundCard(roomId: string, cardCode: string, targetUserId?: string, confirmBust = false) {
