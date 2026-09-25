@@ -29,6 +29,11 @@ export type RoundPlayer = {
 export type LiveRound = { id: string; number: number; status: 'active' | 'review' | 'finalized'; players: RoundPlayer[]; cards: RoundCard[] }
 export type RoundScore = { roundNumber: number; userId: string; score: number }
 
+export const HEALTHY_REFRESH_INTERVAL_MS = 120_000
+export const DEGRADED_REFRESH_INTERVAL_MS = 15_000
+export const PRESENCE_SYNC_INTERVAL_MS = 120_000
+export const REALTIME_INVALIDATION_DEBOUNCE_MS = 250
+
 function client() {
   if (!supabase) throw new Error('Supabase configuration is missing.')
   return supabase
@@ -78,21 +83,10 @@ export async function leaveRoom(roomId: string) {
 }
 
 export async function getRoomSnapshot(roomCode: string): Promise<RoomSnapshot> {
-  const db = client()
-  const { data: room, error: roomError } = await db
-    .from('rooms')
-    .select('id, code, host_user_id, target_score, status, round_number')
-    .eq('code', roomCode.toUpperCase())
-    .single()
-  if (roomError) throw new Error(roomError.message || JSON.stringify(roomError))
-
-  const { data: members, error: membersError } = await db
-    .from('room_members')
-    .select('room_id, user_id, role, status, final_score, profiles(display_name, avatar_color)')
-    .eq('room_id', room.id)
-    .order('joined_at')
-  if (membersError) throw new Error(membersError.message || JSON.stringify(membersError))
-  return { room: room as Room, members: members as unknown as Member[] }
+  const { data, error } = await client().rpc('get_room_snapshot', { p_room_code: roomCode.toUpperCase() })
+  if (error) throw new Error(error.message || JSON.stringify(error))
+  if (!data) throw new Error('This room is unavailable.')
+  return data as RoomSnapshot
 }
 
 export async function approveRoomMember(roomId: string, userId: string) {
@@ -106,67 +100,15 @@ export async function startMatch(roomId: string) {
 }
 
 export async function getLiveRound(roomId: string): Promise<LiveRound | null> {
-  const db = client()
-  const { data: round, error: roundError } = await db.from('game_rounds').select('id, number, status').eq('room_id', roomId).order('number', { ascending: false }).limit(1).maybeSingle()
-  if (roundError) throw new Error(roundError.message)
-  if (!round) return null
-  const { data: players, error: playersError } = await db.from('round_players').select('id, user_id, status, round_score, total_score, flip_seven_bonus, second_chance_count, confirmed_at, profiles(display_name, avatar_color)').eq('round_id', round.id)
-  if (playersError) throw new Error(playersError.message)
-  const ids = (players ?? []).map((player) => player.id)
-  const { data: cards, error: cardsError } = ids.length
-    ? await db.from('round_cards').select('id, round_player_id, card_code, sequence, source_event_id, voided_at').in('round_player_id', ids).order('sequence')
-    : { data: [], error: null }
-  if (cardsError) throw new Error(cardsError.message)
-  const rawCards = (cards ?? []) as RoundCard[]
-  const sourceEventIds = rawCards.map((card) => card.source_event_id).filter((id): id is string => Boolean(id))
-  const { data: sourceEvents, error: sourceEventsError } = sourceEventIds.length
-    ? await db.from('game_events').select('id, event_type, payload').in('id', sourceEventIds)
-    : { data: [], error: null }
-  if (sourceEventsError) throw new Error(sourceEventsError.message)
-  const secondChanceEvents = new Set((sourceEvents ?? [])
-    .filter((event) => event.event_type === 'card_recorded' && event.payload?.second_chance_used === true)
-    .map((event) => event.id))
-  const { data: correctionEvents, error: correctionEventsError } = await db
-    .from('game_events')
-    .select('payload')
-    .eq('round_id', round.id)
-    .eq('event_type', 'card_corrected')
-  if (correctionEventsError) throw new Error(correctionEventsError.message)
-  const correctedCardIds = new Set((correctionEvents ?? [])
-    .map((event) => event.payload?.card_id)
-    .filter((id): id is string => typeof id === 'string'))
-  const normalizedCards = rawCards.filter((card) => !correctedCardIds.has(card.id)).map((card) => ({
-    ...card,
-    voided_by_second_chance: card.voided_at !== null && card.source_event_id !== null && secondChanceEvents.has(card.source_event_id),
-  }))
-  return { ...round, players: players as unknown as RoundPlayer[], cards: normalizedCards }
+  const { data, error } = await client().rpc('get_live_round_snapshot', { p_room_id: roomId })
+  if (error) throw new Error(error.message || JSON.stringify(error))
+  return data as LiveRound | null
 }
 
 export async function getRoundScores(roomId: string): Promise<RoundScore[]> {
-  const db = client()
-  const { data: rounds, error: roundsError } = await db
-    .from('game_rounds')
-    .select('id, number')
-    .eq('room_id', roomId)
-    .eq('status', 'finalized')
-    .order('number')
-  if (roundsError) throw new Error(roundsError.message)
-
-  const finalizedRounds = rounds ?? []
-  if (!finalizedRounds.length) return []
-
-  const roundNumberById = new Map(finalizedRounds.map((round) => [round.id, round.number]))
-  const { data: players, error: playersError } = await db
-    .from('round_players')
-    .select('round_id, user_id, round_score')
-    .in('round_id', finalizedRounds.map((round) => round.id))
-  if (playersError) throw new Error(playersError.message)
-
-  return (players ?? []).map((player) => ({
-    roundNumber: roundNumberById.get(player.round_id) ?? 0,
-    userId: player.user_id,
-    score: player.round_score,
-  })).sort((a, b) => a.roundNumber - b.roundNumber)
+  const { data, error } = await client().rpc('get_round_scores_snapshot', { p_room_id: roomId })
+  if (error) throw new Error(error.message || JSON.stringify(error))
+  return (data ?? []) as RoundScore[]
 }
 
 export async function recordRoundCard(roomId: string, cardCode: string, targetUserId?: string, confirmBust = false) {
@@ -200,9 +142,9 @@ export async function finalizeRound(roomId: string) {
   if (error) throw new Error(error.message)
 }
 
-export async function heartbeatRoom(roomId: string) {
-  await client().rpc('heartbeat_room', { p_room_id: roomId })
-  await client().rpc('transfer_host_if_stale', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+export async function syncRoomPresence(roomId: string) {
+  const { error } = await client().rpc('sync_room_presence', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+  if (error) throw new Error(error.message || JSON.stringify(error))
 }
 
 export async function updateProfile(displayName: string) {

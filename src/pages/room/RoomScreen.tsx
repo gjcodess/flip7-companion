@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Crown, LoaderCircle, LogOut, Play } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
-import { approveRoomMember, getRoomSnapshot, leaveRoom as leaveRoomRpc, startMatch, type RoomSnapshot } from '../../lib/room'
+import { approveRoomMember, DEGRADED_REFRESH_INTERVAL_MS, getRoomSnapshot, HEALTHY_REFRESH_INTERVAL_MS, leaveRoom as leaveRoomRpc, REALTIME_INVALIDATION_DEBOUNCE_MS, startMatch, type RoomSnapshot } from '../../lib/room'
 import { supabase } from '../../lib/supabase'
 import { RoomCode } from '../../components/RoomCode'
 import { ResultsScreen } from '../results/ResultsScreen'
@@ -11,12 +11,31 @@ export function RoomScreen({ user, code, leaveRoom }: { user: User; code: string
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const refresh = async () => { try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') } }
+  const [realtimeHealthy, setRealtimeHealthy] = useState(false)
+  const refreshInFlightRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+  const timerCodeRef = useRef<string | undefined>(undefined)
+  const refresh = async () => {
+    if (document.visibilityState !== 'visible') return
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      return
+    }
+    refreshInFlightRef.current = true
+    try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') }
+    finally {
+      refreshInFlightRef.current = false
+      if (refreshQueuedRef.current && document.visibilityState === 'visible') {
+        refreshQueuedRef.current = false
+        void refresh()
+      } else refreshQueuedRef.current = false
+    }
+  }
   useEffect(() => {
     let timer: number | undefined
     const startPolling = () => {
       if (timer !== undefined || document.visibilityState !== 'visible') return
-      timer = window.setInterval(() => void refresh(), 5000)
+      timer = window.setInterval(() => void refresh(), realtimeHealthy ? HEALTHY_REFRESH_INTERVAL_MS : DEGRADED_REFRESH_INTERVAL_MS)
     }
     const stopPolling = () => {
       if (timer === undefined) return
@@ -31,19 +50,46 @@ export function RoomScreen({ user, code, leaveRoom }: { user: User; code: string
         stopPolling()
       }
     }
-    if (document.visibilityState === 'visible') void refresh()
+    const codeChanged = timerCodeRef.current !== code
+    timerCodeRef.current = code
+    if (codeChanged && document.visibilityState === 'visible') void refresh()
     startPolling()
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisibilityChange) }
-  }, [code])
+  }, [code, realtimeHealthy])
   useEffect(() => {
     if (!supabase || !snapshot) return
     const db = supabase
+    let refreshTimer: number | undefined
+    let disposed = false
+    let shouldRefreshAfterSubscribe = false
+    setRealtimeHealthy(false)
+    const scheduleRefresh = () => {
+      if (document.visibilityState !== 'visible') return
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => { refreshTimer = undefined; void refresh() }, REALTIME_INVALIDATION_DEBOUNCE_MS)
+    }
     let channel = db.channel(`room-${snapshot.room.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${snapshot.room.id}` }, () => void refresh())
-    if (snapshot.room.status === 'lobby') channel = channel.on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${snapshot.room.id}` }, () => void refresh())
-    channel.subscribe()
-    return () => { void db.removeChannel(channel) }
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${snapshot.room.id}` }, scheduleRefresh)
+    if (snapshot.room.status === 'lobby') channel = channel.on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${snapshot.room.id}` }, scheduleRefresh)
+    channel.subscribe((status) => {
+      if (disposed) return
+      if (status === 'SUBSCRIBED') {
+        setRealtimeHealthy(true)
+        if (shouldRefreshAfterSubscribe) {
+          shouldRefreshAfterSubscribe = false
+          scheduleRefresh()
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        shouldRefreshAfterSubscribe = true
+        setRealtimeHealthy(false)
+      }
+    })
+    return () => {
+      disposed = true
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer)
+      void db.removeChannel(channel)
+    }
   }, [snapshot?.room.id, snapshot?.room.status])
   if (error) return <div className="simple-state"><p>{error}</p><button onClick={leaveRoom}>Back to rooms</button></div>
   if (!snapshot) return <div className="simple-state"><LoaderCircle className="spin" /><p>Setting the table…</p></div>
