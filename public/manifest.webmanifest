@@ -1,10 +1,11 @@
 {
   "name": "Flip7 Companion",
-  "short_name": "Flip7",
+  "short_name": "Flip7 Companion",
   "description": "A live companion for the physical Flip 7 card game.",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "display": "fullscreen",
   "background_color": "#fff7da",
   "theme_color": "#132d67",
   "icons": [{ "src": "/assets/flip7-companion-icon-512-rounded.png", "type": "image/png", "sizes": "512x512", "purpose": "any" }]
