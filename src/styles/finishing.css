@@ -10,3 +10,16 @@
 .desktop-marquee > div { display: none; }
 .desktop-marquee { z-index: 1; }
 .game-shell { z-index: 2; }
+.topbar { min-height: calc(78px + env(safe-area-inset-top)); padding-top: calc(14px + env(safe-area-inset-top)); }
+.actions { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+.card-picker { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+.toast { bottom: calc(64px + env(safe-area-inset-bottom)); }
+.landing-nav { min-height: calc(74px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); }
+.landing-nav-inner { min-height: 74px; }
+.landing-footer-bottom { min-height: calc(76px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+
+@media (max-width: 720px) {
+  .landing-nav { min-height: calc(70px + env(safe-area-inset-top)); }
+  .landing-nav-inner { min-height: 70px; }
+  .landing-mobile-backdrop { inset: calc(70px + env(safe-area-inset-top)) 0 0; }
+}
