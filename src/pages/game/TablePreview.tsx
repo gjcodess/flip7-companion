@@ -92,12 +92,45 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       setTableVoidedIds([...voidedIds, ...consumedSecondChanceIds])
     } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally { refreshInFlightRef.current = false }
   }
-  useEffect(() => { if (!roomId) return; void refreshLiveRound(); const timer = window.setInterval(() => { void refreshLiveRound(); void heartbeatRoom(roomId) }, 15000); return () => window.clearInterval(timer) }, [roomId, user?.id])
+  useEffect(() => {
+    if (!roomId) return
+    let timer: number | undefined
+    const refreshAndHeartbeat = () => {
+      if (document.visibilityState !== 'visible') return
+      void refreshLiveRound()
+      void heartbeatRoom(roomId).catch(() => undefined)
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshLiveRound()
+    }
+    const startPolling = () => {
+      if (timer !== undefined || document.visibilityState !== 'visible') return
+      timer = window.setInterval(refreshAndHeartbeat, 15000)
+    }
+    const stopPolling = () => {
+      if (timer === undefined) return
+      window.clearInterval(timer)
+      timer = undefined
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAndHeartbeat()
+        startPolling()
+      } else {
+        stopPolling()
+      }
+    }
+    refreshWhenVisible()
+    startPolling()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [roomId, user?.id])
   useEffect(() => {
     if (!roomId || !supabase) return
     const db = supabase
     let refreshTimer: number | undefined
     const scheduleRefresh = () => {
+      if (document.visibilityState !== 'visible') return
       if (refreshTimer !== undefined) window.clearTimeout(refreshTimer)
       refreshTimer = window.setTimeout(() => { refreshTimer = undefined; void refreshLiveRound() }, 80)
     }

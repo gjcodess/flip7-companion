@@ -12,7 +12,30 @@ export function RoomScreen({ user, code, leaveRoom }: { user: User; code: string
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const refresh = async () => { try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') } }
-  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 5000); return () => window.clearInterval(timer) }, [code])
+  useEffect(() => {
+    let timer: number | undefined
+    const startPolling = () => {
+      if (timer !== undefined || document.visibilityState !== 'visible') return
+      timer = window.setInterval(() => void refresh(), 5000)
+    }
+    const stopPolling = () => {
+      if (timer === undefined) return
+      window.clearInterval(timer)
+      timer = undefined
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh()
+        startPolling()
+      } else {
+        stopPolling()
+      }
+    }
+    if (document.visibilityState === 'visible') void refresh()
+    startPolling()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [code])
   useEffect(() => {
     if (!supabase || !snapshot) return
     const db = supabase
