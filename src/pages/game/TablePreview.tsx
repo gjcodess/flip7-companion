@@ -59,11 +59,18 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const dialogLockRef = useRef(false)
   const cardSelectionRef = useRef(false)
   const refreshInFlightRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+  const queuedPreserveCardIndexRef = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (!pickerOpen && !pickerQueued && !submitting && !pendingAction) actionLockRef.current = false
   }, [pickerOpen, pickerQueued, submitting, pendingAction])
   const refreshLiveRound = async (preserveCardIndex?: number) => {
-    if (!roomId || refreshInFlightRef.current) return
+    if (!roomId) return
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      if (preserveCardIndex !== undefined) queuedPreserveCardIndexRef.current = preserveCardIndex
+      return
+    }
     refreshInFlightRef.current = true
     try {
       const next = await withTimeout(getLiveRound(roomId), 'The table refresh took too long. Please try again.')
@@ -90,40 +97,56 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       setTable(cards)
       setTableCardIds(cardIds)
       setTableVoidedIds([...voidedIds, ...consumedSecondChanceIds])
-    } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally { refreshInFlightRef.current = false }
+    } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally {
+      refreshInFlightRef.current = false
+      if (refreshQueuedRef.current && document.visibilityState === 'visible') {
+        refreshQueuedRef.current = false
+        const queuedPreserveCardIndex = queuedPreserveCardIndexRef.current
+        queuedPreserveCardIndexRef.current = undefined
+        void refreshLiveRound(queuedPreserveCardIndex)
+      } else {
+        refreshQueuedRef.current = false
+        queuedPreserveCardIndexRef.current = undefined
+      }
+    }
   }
   useEffect(() => {
     if (!roomId) return
-    let timer: number | undefined
-    const refreshAndHeartbeat = () => {
+    let refreshTimer: number | undefined
+    let heartbeatTimer: number | undefined
+    const refreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return
       void refreshLiveRound()
+    }
+    const heartbeatWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return
       void heartbeatRoom(roomId).catch(() => undefined)
     }
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void refreshLiveRound()
+    const startTimers = () => {
+      if (document.visibilityState !== 'visible') return
+      if (refreshTimer === undefined) refreshTimer = window.setInterval(refreshWhenVisible, 30000)
+      if (heartbeatTimer === undefined) heartbeatTimer = window.setInterval(heartbeatWhenVisible, 60000)
     }
-    const startPolling = () => {
-      if (timer !== undefined || document.visibilityState !== 'visible') return
-      timer = window.setInterval(refreshAndHeartbeat, 15000)
-    }
-    const stopPolling = () => {
-      if (timer === undefined) return
-      window.clearInterval(timer)
-      timer = undefined
+    const stopTimers = () => {
+      if (refreshTimer !== undefined) window.clearInterval(refreshTimer)
+      if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
+      refreshTimer = undefined
+      heartbeatTimer = undefined
     }
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        refreshAndHeartbeat()
-        startPolling()
+        refreshWhenVisible()
+        heartbeatWhenVisible()
+        startTimers()
       } else {
-        stopPolling()
+        stopTimers()
       }
     }
     refreshWhenVisible()
-    startPolling()
+    heartbeatWhenVisible()
+    startTimers()
     document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => { stopPolling(); document.removeEventListener('visibilitychange', onVisibilityChange) }
+    return () => { stopTimers(); document.removeEventListener('visibilitychange', onVisibilityChange) }
   }, [roomId, user?.id])
   useEffect(() => {
     if (!roomId || !supabase) return
@@ -135,12 +158,14 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       refreshTimer = window.setTimeout(() => { refreshTimer = undefined; void refreshLiveRound() }, 80)
     }
     const channel = db.channel(`live-round-${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_cards' }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_players' }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rounds' }, scheduleRefresh)
-      .subscribe()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_events', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+    if (liveRound?.id) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'round_players', filter: `round_id=eq.${liveRound.id}` }, scheduleRefresh)
+    }
+    channel.subscribe()
     return () => { if (refreshTimer !== undefined) window.clearTimeout(refreshTimer); void db.removeChannel(channel) }
-  }, [roomId, user?.id])
+  }, [roomId, user?.id, liveRound?.id])
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
   const isVoidedCard = (index: number) => Boolean(roomId && tableVoidedIds.includes(tableCardIds[index]))

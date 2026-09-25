@@ -201,8 +201,12 @@ export async function finalizeRound(roomId: string) {
 }
 
 export async function heartbeatRoom(roomId: string) {
-  await client().rpc('heartbeat_room', { p_room_id: roomId })
-  await client().rpc('transfer_host_if_stale', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+  const db = client()
+  const { error: heartbeatError } = await db.rpc('heartbeat_room', { p_room_id: roomId })
+  if (heartbeatError) throw new Error(heartbeatError.message || JSON.stringify(heartbeatError))
+
+  const { error: transferError } = await db.rpc('transfer_host_if_stale', { p_room_id: roomId, p_client_event_id: crypto.randomUUID() })
+  if (transferError) throw new Error(transferError.message || JSON.stringify(transferError))
 }
 
 export async function updateProfile(displayName: string) {

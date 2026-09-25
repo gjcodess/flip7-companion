@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Crown, LoaderCircle, LogOut, Play } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { approveRoomMember, getRoomSnapshot, leaveRoom as leaveRoomRpc, startMatch, type RoomSnapshot } from '../../lib/room'
@@ -11,12 +11,29 @@ export function RoomScreen({ user, code, leaveRoom }: { user: User; code: string
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const refresh = async () => { try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') } }
+  const refreshInFlightRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+  const refresh = async () => {
+    if (document.visibilityState !== 'visible') return
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      return
+    }
+    refreshInFlightRef.current = true
+    try { setSnapshot(await getRoomSnapshot(code)); setError('') } catch (caught) { setError(caught instanceof Error ? caught.message : 'This room is unavailable.') }
+    finally {
+      refreshInFlightRef.current = false
+      if (refreshQueuedRef.current && document.visibilityState === 'visible') {
+        refreshQueuedRef.current = false
+        void refresh()
+      } else refreshQueuedRef.current = false
+    }
+  }
   useEffect(() => {
     let timer: number | undefined
     const startPolling = () => {
       if (timer !== undefined || document.visibilityState !== 'visible') return
-      timer = window.setInterval(() => void refresh(), 5000)
+      timer = window.setInterval(() => void refresh(), 30000)
     }
     const stopPolling = () => {
       if (timer === undefined) return
