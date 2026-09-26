@@ -39,11 +39,11 @@ export function GameTable({ table, tableCardIds, isVoidedCard, score, flipSevenB
                 const index = rowIndex * 5 + rowCardIndex
                 const cardVoided = isVoidedCard(index)
                 return <motion.button
-                  className={`table-card ${card.kind} ${cardVoided ? 'card-voided' : ''}`}
+                  className={`table-card ${card.kind} ${cardVoided ? 'card-voided' : ''} ${busted ? 'card-busted' : ''}`}
                   key={tableCardIds[index] || card.id}
                   layout
                   initial={{ opacity: 0, y: -32, rotate: rowCardIndex % 2 ? 3 : -3 }}
-                  animate={{ opacity: cardVoided ? .42 : 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
+                  animate={{ opacity: cardVoided || busted ? .42 : 1, y: 0, rotate: rowCardIndex % 2 ? 2 : -2 }}
                   exit={{ opacity: 0, y: -28 }}
                   transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                   disabled={interactionLocked}
