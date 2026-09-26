@@ -188,8 +188,9 @@ html.landing-active::-webkit-scrollbar-thumb:hover { background: #ffe05c; }
   .landing-signin { min-height: 36px; padding-inline: 14px; }
   .landing-hero-grid { padding-inline: 16px; }
   .landing-copy h1 { font-size: clamp(40px, 12.5vw, 56px); }
-  .landing-actions { display: grid; grid-template-columns: 1fr; width: min(100%, 300px); margin-inline: auto; }
-  .landing-primary, .landing-demo, .landing-secondary { width: 100%; }
+  .landing-actions { display: grid; grid-template-columns: 1fr 1fr; width: min(100%, 340px); margin-inline: auto; }
+  .landing-primary { width: 100%; grid-column: 1 / -1; }
+  .landing-demo, .landing-secondary { width: 100%; padding-inline: 8px; font-size: 13px; }
   .landing-facts { width: min(100%, 300px); margin-inline: auto; justify-content: space-between; gap: 10px; }
   .landing-facts span { font-size: 10px; }
   .landing-art { min-height: 290px; }
