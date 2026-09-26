@@ -59,7 +59,7 @@
 .landing-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
 .landing-primary, .landing-secondary { min-height: 54px; padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 3px solid #132d67; border-radius: 6px; font-size: 15px; font-weight: 1000; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
 .landing-primary { background: #ed4f7e; color: #fff7da; box-shadow: 4px 4px 0 #132d67; }
-.landing-secondary { background: #fffdf5; color: #132d67; box-shadow: 4px 4px 0 #ffe05c; }
+.landing-secondary { background: #fffdf5; color: #132d67; box-shadow: 4px 4px 0 #132d67; }
 .landing-primary:hover, .landing-secondary:hover { transform: translate(-1px, -2px); }
 .landing-primary:hover { box-shadow: 6px 6px 0 #132d67; }
 .landing-secondary:hover { background: #ffe05c; box-shadow: 6px 6px 0 #132d67; }
