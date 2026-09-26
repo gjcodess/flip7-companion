@@ -4,7 +4,7 @@ import { CircleHelp, Crown, LogOut, Users, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, type Card } from '../../game/cards'
 import { supabase } from '../../lib/supabase'
-import { confirmRoundResult, finalizeRound, getLiveRound, heartbeatRoom, recordRoundCard, stayInRound, voidRoundCard, type LiveRound } from '../../lib/room'
+import { confirmRoundResult, DEGRADED_REFRESH_INTERVAL_MS, finalizeRound, getLiveRound, HEALTHY_REFRESH_INTERVAL_MS, PRESENCE_SYNC_INTERVAL_MS, REALTIME_INVALIDATION_DEBOUNCE_MS, recordRoundCard, stayInRound, syncRoomPresence, voidRoundCard, type LiveRound } from '../../lib/room'
 import { cardCode, errorMessage, pointLabel, withTimeout } from '../../lib/app-utils'
 import { RoomCode } from '../../components/RoomCode'
 import { HomePrompt } from '../../components/HomePrompt'
@@ -55,15 +55,24 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const [lastRemoval, setLastRemoval] = useState<{ index: number; card: Card } | null>(null)
   const [lastAdded, setLastAdded] = useState<{ card: Card; id?: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [realtimeHealthy, setRealtimeHealthy] = useState(false)
   const actionLockRef = useRef(false)
   const dialogLockRef = useRef(false)
   const cardSelectionRef = useRef(false)
   const refreshInFlightRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+  const queuedPreserveCardIndexRef = useRef<number | undefined>(undefined)
+  const timerRoomIdRef = useRef<string | undefined>(undefined)
   useEffect(() => {
     if (!pickerOpen && !pickerQueued && !submitting && !pendingAction) actionLockRef.current = false
   }, [pickerOpen, pickerQueued, submitting, pendingAction])
   const refreshLiveRound = async (preserveCardIndex?: number) => {
-    if (!roomId || refreshInFlightRef.current) return
+    if (!roomId) return
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      if (preserveCardIndex !== undefined) queuedPreserveCardIndexRef.current = preserveCardIndex
+      return
+    }
     refreshInFlightRef.current = true
     try {
       const next = await withTimeout(getLiveRound(roomId), 'The table refresh took too long. Please try again.')
@@ -90,24 +99,98 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
       setTable(cards)
       setTableCardIds(cardIds)
       setTableVoidedIds([...voidedIds, ...consumedSecondChanceIds])
-    } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally { refreshInFlightRef.current = false }
+    } catch (caught) { setToast(errorMessage(caught, 'Could not refresh the table.')) } finally {
+      refreshInFlightRef.current = false
+      if (refreshQueuedRef.current && document.visibilityState === 'visible') {
+        refreshQueuedRef.current = false
+        const queuedPreserveCardIndex = queuedPreserveCardIndexRef.current
+        queuedPreserveCardIndexRef.current = undefined
+        void refreshLiveRound(queuedPreserveCardIndex)
+      } else {
+        refreshQueuedRef.current = false
+        queuedPreserveCardIndexRef.current = undefined
+      }
+    }
   }
-  useEffect(() => { if (!roomId) return; void refreshLiveRound(); const timer = window.setInterval(() => { void refreshLiveRound(); void heartbeatRoom(roomId) }, 15000); return () => window.clearInterval(timer) }, [roomId, user?.id])
+  useEffect(() => {
+    if (!roomId) return
+    let refreshTimer: number | undefined
+    let presenceTimer: number | undefined
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      void refreshLiveRound()
+    }
+    const syncPresenceWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      void syncRoomPresence(roomId).catch(() => undefined)
+    }
+    const startTimers = () => {
+      if (document.visibilityState !== 'visible') return
+      if (refreshTimer === undefined) refreshTimer = window.setInterval(refreshWhenVisible, realtimeHealthy ? HEALTHY_REFRESH_INTERVAL_MS : DEGRADED_REFRESH_INTERVAL_MS)
+      if (presenceTimer === undefined) presenceTimer = window.setInterval(syncPresenceWhenVisible, PRESENCE_SYNC_INTERVAL_MS)
+    }
+    const stopTimers = () => {
+      if (refreshTimer !== undefined) window.clearInterval(refreshTimer)
+      if (presenceTimer !== undefined) window.clearInterval(presenceTimer)
+      refreshTimer = undefined
+      presenceTimer = undefined
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshWhenVisible()
+        syncPresenceWhenVisible()
+        startTimers()
+      } else {
+        stopTimers()
+      }
+    }
+    const roomChanged = timerRoomIdRef.current !== roomId
+    timerRoomIdRef.current = roomId
+    if (roomChanged) {
+      refreshWhenVisible()
+      syncPresenceWhenVisible()
+    }
+    startTimers()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { stopTimers(); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [roomId, user?.id, realtimeHealthy])
   useEffect(() => {
     if (!roomId || !supabase) return
     const db = supabase
     let refreshTimer: number | undefined
+    let disposed = false
+    let shouldRefreshAfterSubscribe = false
+    setRealtimeHealthy(false)
     const scheduleRefresh = () => {
+      if (document.visibilityState !== 'visible') return
       if (refreshTimer !== undefined) window.clearTimeout(refreshTimer)
-      refreshTimer = window.setTimeout(() => { refreshTimer = undefined; void refreshLiveRound() }, 80)
+      refreshTimer = window.setTimeout(() => { refreshTimer = undefined; void refreshLiveRound() }, REALTIME_INVALIDATION_DEBOUNCE_MS)
     }
     const channel = db.channel(`live-round-${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_cards' }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_players' }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rounds' }, scheduleRefresh)
-      .subscribe()
-    return () => { if (refreshTimer !== undefined) window.clearTimeout(refreshTimer); void db.removeChannel(channel) }
-  }, [roomId, user?.id])
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+    if (liveRound?.id) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'round_players', filter: `round_id=eq.${liveRound.id}` }, scheduleRefresh)
+    }
+    channel.subscribe((status) => {
+      if (disposed) return
+      if (status === 'SUBSCRIBED') {
+        setRealtimeHealthy(true)
+        if (shouldRefreshAfterSubscribe) {
+          shouldRefreshAfterSubscribe = false
+          scheduleRefresh()
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        shouldRefreshAfterSubscribe = true
+        setRealtimeHealthy(false)
+      }
+    })
+    return () => {
+      disposed = true
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer)
+      void db.removeChannel(channel)
+    }
+  }, [roomId, user?.id, liveRound?.id])
   const mine = liveRound?.players.find((player) => player.user_id === user?.id)
   const localScore = useMemo(() => scoreTable(table), [table])
   const isVoidedCard = (index: number) => Boolean(roomId && tableVoidedIds.includes(tableCardIds[index]))

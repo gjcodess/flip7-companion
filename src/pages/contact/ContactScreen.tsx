@@ -7,7 +7,7 @@ export function ContactScreen() {
   const [navScrolled, setNavScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const email = 'glennjoshuacorpus@gmail.com'
+  const email = 'glennjoshuacorpus1@gmail.com'
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 8)
