@@ -12,6 +12,7 @@ import { ContactScreen } from './pages/contact/ContactScreen'
 import { AuthScreen } from './pages/auth/AuthScreen'
 import { HomeScreen } from './pages/home/HomeScreen'
 import { RoomScreen } from './pages/room/RoomScreen'
+import { DemoScreen } from './pages/game/DemoScreen'
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
@@ -20,9 +21,11 @@ export default function App() {
   const isPrivacyPage = window.location.pathname === '/privacy'
   const isTermsPage = window.location.pathname === '/terms'
   const isContactPage = window.location.pathname === '/contact'
+  const isDemoPage = window.location.pathname === '/demo'
   const [showLanding, setShowLanding] = useState(() => window.location.pathname === '/' || window.location.pathname === '/landing')
   const [roomCode, setRoomCode] = useState(() => roomCodeFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get('room'))
   useEffect(() => {
+    if (isDemoPage) { setUser(null); return }
     if (!supabase) { setUser(null); return }
     void currentUser().then(setUser)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
@@ -40,6 +43,7 @@ export default function App() {
   if (isPrivacyPage) return <LegalScreen kind="privacy" />
   if (isTermsPage) return <LegalScreen kind="terms" />
   if (isContactPage) return <ContactScreen />
+  if (isDemoPage) return <DemoScreen />
   if (!supabase) return <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
   if (showLanding) return <LandingScreen onStart={enterApp} />
   if (user === undefined) return <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>

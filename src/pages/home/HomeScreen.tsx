@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'motion/react'
-import { LogOut, Play, Users } from 'lucide-react'
+import { LogOut, Play, Sparkles, Users } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { createRoom, requestRoomJoin } from '../../lib/room'
 import { errorMessage } from '../../lib/app-utils'
@@ -41,6 +41,7 @@ export function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: st
     <header className="topbar"><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /><button className="account-pill room-leave-button" onClick={() => supabase?.auth.signOut()}><LogOut size={15} /> Exit</button></header>
     <section className="auth-hero compact"><span className="eyebrow">WELCOME TO THE TABLE</span><h1>Ready when the deck is.</h1><p>Create a room for your group, or enter a code from the host.</p></section>
     <section className="home-mode-switch" aria-label="Choose how to enter a game"><button className={homeMode === 'join' ? 'selected' : ''} onClick={() => setHomeMode('join')}><Users size={16} /> Join a game</button><button className={homeMode === 'host' ? 'selected' : ''} onClick={() => setHomeMode('host')}><Play size={16} /> Host a game</button></section>
+    <button className="home-demo-link" onClick={() => window.location.assign('/demo')}><Sparkles size={16} /> Try a private visual demo — nothing is saved</button>
     <section className="lobby-grid">
       {homeMode === 'join' ? <JoinGameForm name={name} joinCode={joinCode} setJoinCode={setJoinCode} busy={busy} onJoin={join} /> : <HostGameForm name={name} target={target} setTarget={setTarget} busy={busy} onCreate={create} />}
     </section>
