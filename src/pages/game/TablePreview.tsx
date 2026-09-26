@@ -12,6 +12,7 @@ import { GameTable } from './GameTable'
 import { OpponentStrip, type Player } from './OpponentStrip'
 import { GameControls } from './GameControls'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
+import { useAppNavigation } from '../../lib/navigation'
 
 const demoPlayers: Player[] = [
   { id: 'maya', name: 'Maya', score: 82, roundScore: 24, state: 'active', color: '#ed4f7e', cards: 4 },
@@ -29,6 +30,7 @@ function scoreTable(cards: Card[]) {
 }
 
 export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', hostUserId, roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; hostUserId?: string; roomId?: string; user?: User; onLeave?: () => void }) {
+  const navigate = useAppNavigation()
   const [table, setTable] = useState<Card[]>(roomId ? [] : demoTable)
   const [tableCardIds, setTableCardIds] = useState<string[]>([])
   const [tableVoidedIds, setTableVoidedIds] = useState<string[]>([])
@@ -524,7 +526,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
           </motion.div>
         )}
       </AnimatePresence>
-        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.location.assign('/') }} />}</AnimatePresence>
+        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => navigate('/')} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>

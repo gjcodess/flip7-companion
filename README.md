@@ -30,6 +30,7 @@ The app includes:
 - Live round tracking, card selection, corrections, undo/redo, and card organization.
 - Authoritative, server-side score calculation and round settlement through Supabase RPCs.
 - Individual round-score history on the match results screen.
+- A public local demo mode for practicing card choices and scoring without signing in or saving data.
 - A mobile-first layout, installable PWA metadata, and cached app assets for faster repeat loads.
 - Branded in-app warning dialogs in place of browser validation bubbles.
 
@@ -134,6 +135,7 @@ Seven unique Number cards immediately end the round for that player and award th
 | `/contact` | Contact page. The built-in contact form is coming soon; the page currently offers an email copy action. |
 | `/lobby` | Guest entry and room lobby. |
 | `/game/:ROOM_CODE` | Waiting room, active match, round review, and final results for a room. |
+| `/demo` | Local solo practice table. Choices stay in memory and are discarded when the demo is left or refreshed. |
 
 ## Technology
 
