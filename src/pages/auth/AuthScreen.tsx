@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { KeyRound, LoaderCircle, Sparkles, UserRoundPlus, X } from 'lucide-react'
+import { Eye, KeyRound, LoaderCircle, UserRoundPlus, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { createPasswordAccount, signInAsGuest, signInWithPassword } from '../../lib/room'
 import { errorMessage } from '../../lib/app-utils'
@@ -69,7 +69,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         <button className="primary-wide" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : mode === 'guest' ? <UserRoundPlus /> : <KeyRound />} {mode === 'guest' ? 'Start as a guest' : mode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
         {mode !== 'guest' && <button type="button" className="text-action" onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}>{mode === 'sign-in' ? 'Need an account? Sign up' : 'Already have an account? Sign in'}</button>}
       </form>
-      <section className="auth-demo-card"><div className="auth-demo-copy"><span className="eyebrow">TRY DEMO</span><h2>Just want to look around?</h2><p>Try the visual demo and practice choosing cards without signing in or saving anything.</p></div><button className="auth-demo-button" onClick={() => navigate('/demo')}><Sparkles size={17} /> Try the demo</button></section>
+      <section className="auth-demo-card"><div className="auth-demo-copy"><span className="eyebrow">TRY DEMO</span><h2>Just want to look around?</h2><p>Try the visual demo and practice choosing cards without signing in or saving anything.</p></div><button className="auth-demo-button" onClick={() => navigate('/demo')}><Eye size={17} /> Try the demo</button></section>
     </main>
     <aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
     <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => navigate('/')} />}{showAccountSoon && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setShowAccountSoon(false)}><motion.section className="card-picker home-prompt account-coming-soon" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ACCOUNT ACCESS</span><h2>Coming soon.</h2></div><button className="close-button" aria-label="Close" title="Close" onClick={() => setShowAccountSoon(false)}><X size={19} /></button></div><p className="home-prompt-copy">Account sign-in and sign-up are being prepared for a future version. You can still start a table as a guest.</p><div className="account-coming-soon-actions"><button className="primary-wide" onClick={() => setShowAccountSoon(false)}><span className="button-content">Continue as guest</span></button></div></motion.section></motion.div>}{warning && <FieldWarningModal title={warning.title} message={warning.message} onClose={() => setWarning(null)} />}</AnimatePresence>
