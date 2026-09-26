@@ -26,6 +26,7 @@ export type DemoAction =
   | { type: 'remove'; index: number }
   | { type: 'reorder'; entries: DemoEntry[] }
   | { type: 'stay' }
+  | { type: 'reset' }
   | { type: 'undo' }
   | { type: 'redo' }
 
@@ -123,6 +124,7 @@ function rebuild(entries: DemoEntry[], nextId: number) {
 }
 
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
+  if (action.type === 'reset') return demoInitialState()
   if (action.type === 'undo') {
     const previous = state.past[state.past.length - 1]
     return previous ? { ...previous, past: state.past.slice(0, -1), future: [snapshot(state), ...state.future] } : state

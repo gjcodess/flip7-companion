@@ -7,10 +7,12 @@ import { pointLabel } from '../../lib/app-utils'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
 import { GameControls } from './GameControls'
 import { GameTable } from './GameTable'
+import { useAppNavigation } from '../../lib/navigation'
 
 const terminalStatuses: DemoStatus[] = ['stayed', 'frozen', 'busted', 'flip-seven']
 
 export function DemoScreen() {
+  const navigate = useAppNavigation()
   const [state, dispatch] = useReducer(demoReducer, undefined, demoInitialState)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -29,8 +31,15 @@ export function DemoScreen() {
     if (terminal) setSummaryOpen(true)
   }, [terminal])
 
-  const exit = () => window.location.assign('/landing')
-  const newRound = () => window.location.assign('/demo')
+  const exit = () => navigate('/landing')
+  const newRound = () => {
+    dispatch({ type: 'reset' })
+    setPickerOpen(false)
+    setSelectedIndex(null)
+    setEditingIndex(null)
+    setOrganized(false)
+    setSummaryOpen(false)
+  }
   const closePicker = () => { setPickerOpen(false); setEditingIndex(null) }
   const openPicker = () => {
     if (!interactionLocked) {

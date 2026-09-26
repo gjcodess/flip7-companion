@@ -124,6 +124,11 @@ button { line-height: 1; }
 }
 .host-controls .primary-wide { width: 100%; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.page-transition-stage { min-height: 100vh; background: #fff7da; }
+.page-transition { min-height: 100vh; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; animation-timing-function: ease-out; }
+::view-transition-group(app-topbar), ::view-transition-image-pair(app-topbar), ::view-transition-old(app-topbar), ::view-transition-new(app-topbar) { animation: none; }
+.landing-nav, .topbar { view-transition-name: app-topbar; }
 .button-content { display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
 .brand-logo { display: block; width: 116px; height: 48px; object-fit: contain; mix-blend-mode: screen; }
 .brand-button { display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
