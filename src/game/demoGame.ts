@@ -58,12 +58,13 @@ export function scoreDemoEntries(entries: DemoEntry[], status: DemoStatus = 'act
 
 export function deriveDemoState(entries: DemoEntry[]): Pick<DemoSnapshot, 'entries' | 'status' | 'flipThreeRemaining'> {
   const nextEntries = entries.map((entry) => ({ ...entry, voided: false }))
+  const evaluationEntries = [...nextEntries].sort((a, b) => Number(a.instanceId.replace('demo-card-', '')) - Number(b.instanceId.replace('demo-card-', '')))
   const seenNumbers = new Set<string>()
   let secondChanceCount = 0
   let flipThreeRemaining = 0
   let status: DemoStatus = 'active'
 
-  for (const entry of nextEntries) {
+  for (const entry of evaluationEntries) {
     const { card } = entry
     const wasForcedCard = flipThreeRemaining > 0
     if (card.kind === 'action') {
@@ -79,7 +80,7 @@ export function deriveDemoState(entries: DemoEntry[]): Pick<DemoSnapshot, 'entri
     } else if (card.kind === 'number') {
       if (seenNumbers.has(card.id)) {
         if (secondChanceCount > 0) {
-          const consumedSecondChance = nextEntries.slice(0, nextEntries.indexOf(entry)).reverse().find((candidate) => !candidate.voided && candidate.card.id === 'action-second-chance')
+          const consumedSecondChance = evaluationEntries.slice(0, evaluationEntries.indexOf(entry)).reverse().find((candidate) => !candidate.voided && candidate.card.id === 'action-second-chance')
           if (consumedSecondChance) consumedSecondChance.voided = true
           entry.voided = true
           secondChanceCount -= 1
