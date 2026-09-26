@@ -51,7 +51,7 @@ export function DemoScreen() {
       return
     }
     const rank = (id: string) => id.startsWith('number-') ? 0 : id === 'modifier-x2' ? 1 : id.startsWith('modifier-') ? 2 : 3
-    dispatch({ type: 'reorder', entries: [...state.entries].sort((a, b) => rank(a.card.id) - rank(b.card.id) || a.card.label.localeCompare(b.card.label)) })
+    dispatch({ type: 'reorder', entries: [...state.entries].sort((a, b) => Number(a.voided) - Number(b.voided) || rank(a.card.id) - rank(b.card.id) || a.card.label.localeCompare(b.card.label)) })
     setOrganized(true)
   }
   const statusLabel = state.status === 'busted' ? 'BUSTED' : state.status === 'frozen' ? 'FROZEN' : state.status === 'flip-seven' ? 'FLIP 7!' : state.status === 'stayed' ? 'BANKED' : 'ACTIVE'
@@ -68,7 +68,6 @@ export function DemoScreen() {
     <main className="game-shell">
       <header className="topbar demo-topbar">
         <button className="brand-button" aria-label="Exit demo" onClick={exit}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button>
-        <div className="demo-mode-badge">DEMO · NOTHING SAVED</div>
         <button className="account-pill room-leave-button" onClick={exit}><LogOut size={15} /> Exit</button>
       </header>
       <section className="demo-intro"><div><span className="eyebrow">LOCAL PRACTICE TABLE</span><h1>Try the game.</h1><p>Choose cards to explore scoring, busts, and action cards. This practice round is only in your browser.</p></div><button className="demo-rules-button" onClick={() => setRulesOpen(true)}><CircleHelp size={16} /> Rules</button></section>
