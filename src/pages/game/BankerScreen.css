@@ -1,7 +1,9 @@
 .banker-shell .game-shell { overflow: hidden; }
 .banker-topbar { gap: 10px; }
 .banker-topbar .topbar-caption { margin-left: auto; }
-.banker-topbar .room-leave-button { margin-left: 0; }
+.banker-topbar .room-leave-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-left: 0; line-height: 1; }
+.banker-room-menu .room-menu-title { justify-content: flex-start; color: #ed4f7e; }
+.banker-room-menu .room-menu-title::after { content: none; }
 .banker-setup-wrap { flex: 1; padding-bottom: 24px; background: radial-gradient(rgba(19,45,103,.04) 1.25px, transparent 1.25px); background-size: 18px 18px; }
 .banker-hero,.banker-round-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 24px 20px 19px; background: linear-gradient(145deg, #fff7da 0 64%, #57b8d7 64%); border-bottom: 3px solid #132d67; }
 .banker-hero h1,.banker-round-heading h1 { margin: 6px 0 4px; color: #132d67; font-size: clamp(29px, 8vw, 42px); line-height: .95; letter-spacing: -2px; }
