@@ -50,6 +50,7 @@
 .banker-player-tab.frozen { border-color: #2b7897; box-shadow: 2px 2px 0 #2b7897; background: #dff3f8; }
 .banker-player-tab.stayed { border-color: #4d8a45; box-shadow: 2px 2px 0 #4d8a45; background: #eef6d9; }
 .banker-player-tab .mini-avatar { width: 28px; height: 28px; }
+.banker-avatar-initial { display: block; transform: translateY(-1px); }
 .banker-player-tab .opponent-copy { min-width: 0; display: flex; flex-direction: column; padding-bottom: 11px; }
 .banker-player-tab .opponent-copy b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .banker-player-tab .opponent-copy span { font-size: 9px; line-height: 1.25; }
