@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
+import { Analytics } from '@vercel/analytics/react'
 import { supabase } from './lib/supabase'
 import { currentUser } from './lib/room'
 import { roomCodeFromPath } from './lib/app-utils'
