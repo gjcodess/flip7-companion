@@ -14,6 +14,7 @@ import { AuthScreen } from './pages/auth/AuthScreen'
 import { HomeScreen } from './pages/home/HomeScreen'
 import { RoomScreen } from './pages/room/RoomScreen'
 import { DemoScreen } from './pages/game/DemoScreen'
+import { BankerScreen } from './pages/game/BankerScreen'
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
@@ -59,15 +60,17 @@ export default function App() {
   const isTermsPage = location.pathname === '/terms'
   const isContactPage = location.pathname === '/contact'
   const isDemoPage = location.pathname === '/demo'
+  const isBankerPage = location.pathname === '/banker'
+  const isLocalOnlyPage = isDemoPage || isBankerPage
   const showLanding = location.pathname === '/landing'
   const roomCode = roomCodeFromPath(location.pathname) || new URLSearchParams(location.search).get('room')
   useEffect(() => {
-    if (isDemoPage) { setUser(null); return }
+    if (isLocalOnlyPage) { setUser(null); return }
     if (!supabase) { setUser(null); return }
     void currentUser().then(setUser)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
     return () => subscription.unsubscribe()
-  }, [isDemoPage])
+  }, [isLocalOnlyPage])
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       if (location.hash) {
@@ -90,6 +93,7 @@ export default function App() {
   else if (isTermsPage) content = <LegalScreen kind="terms" />
   else if (isContactPage) content = <ContactScreen />
   else if (isDemoPage) content = <DemoScreen />
+  else if (isBankerPage) content = <BankerScreen />
   else if (!supabase) content = <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
   else if (showLanding) content = <LandingScreen onStart={enterApp} />
   else if (user === undefined) content = <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>
