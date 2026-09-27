@@ -23,6 +23,10 @@ function PrivacyPolicy() {
       <ul><li><strong>Account information:</strong> your email address and authentication details when you sign in.</li><li><strong>Player and room information:</strong> your display name, room code, player status, round activity, recorded cards, and scores.</li><li><strong>Technical information:</strong> basic browser, device, and diagnostic information needed to keep the service secure and working.</li></ul>
       <p>The app is designed to record game information that you and your group choose to enter. Please avoid putting sensitive personal information into player names or room notes.</p>
     </LegalSection>
+    <LegalSection id="local-modes" title="Demo and Banker Mode">
+      <p>Demo Mode and Banker Mode are local-only experiences. Their player names, cards, actions, and scores stay in the active browser session and are not sent to or stored in the app's online room services.</p>
+      <p>Demo Mode is for private practice. Banker Mode lets one person operate a shared table from one device. Closing or refreshing the page ends the local session, so these modes do not provide an online game record or recovery.</p>
+    </LegalSection>
     <LegalSection id="use" title="How we use information">
       <p>We use information to provide and improve the companion experience, including to:</p>
       <ul><li>authenticate players and protect rooms;</li><li>sync player states, cards, and scores during a game;</li><li>provide support, troubleshoot errors, and improve reliability; and</li><li>detect misuse, protect the service, and comply with applicable requirements.</li></ul>
@@ -56,6 +60,10 @@ function TermsConditions() {
     <LegalSection id="service" title="The companion service">
       <p>Flip7 Companion is a digital companion for the physical Flip 7 card game. It provides rooms, player presence, card recording, round states, and score tracking. It does not replace the physical deck or decide how players physically draw cards.</p>
       <p>Game hosts are responsible for creating a room, approving players, and moving the table between rounds when the round conditions are met.</p>
+    </LegalSection>
+    <LegalSection id="local-modes" title="Demo and Banker Mode">
+      <p>Demo Mode is a private practice experience. Banker Mode is a one-device setup where a banker switches between player tables and records the group's physical cards and actions locally.</p>
+      <p>These modes are temporary and do not create an online room record. You are responsible for keeping the device available during play, using the physical deck, and recording any information you want to keep before closing or refreshing the session.</p>
     </LegalSection>
     <LegalSection id="independent" title="Independent companion notice">
       <p>Flip7 Companion is an independent, unofficial companion app created for people who want to play the physical card game with friends. It is not affiliated with, endorsed by, sponsored by, or associated with the creator, publisher, or other rights holders of Flip 7.</p>
@@ -118,7 +126,7 @@ export function LegalScreen({ kind }: { kind: LegalKind }) {
     <main className="legal-main">
       <section className="legal-hero"><div className="legal-hero-inner"><span className="eyebrow">{eyebrow}</span><h1>{isPrivacy ? <>Your data,<br /><em>kept clear.</em></> : <>Play fair.<br /><em>Keep it moving.</em></>}</h1><p>{intro}</p><div className="legal-meta"><span>Updated September 2026</span><span>{isPrivacy ? 'Privacy' : 'Terms'}</span></div></div><div className="legal-hero-cards" aria-hidden="true">{heroCards.map((card) => <img key={card} src={`/cards/${card}.png`} alt="" />)}</div></section>
       <div className="legal-content">
-        <aside className="legal-index" aria-label={`${title} sections`}><span className="eyebrow">ON THIS PAGE</span><strong>{title}</strong><nav>{isPrivacy ? <><a href="#overview">Overview</a><a href="#information">Information we collect</a><a href="#use">How we use information</a><a href="#sharing">When information is shared</a><a href="#retention">Storage and retention</a><a href="#choices">Your choices</a><a href="#children">Children's privacy</a><a href="#changes">Changes</a></> : <><a href="#acceptance">Acceptance</a><a href="#service">The companion service</a><a href="#independent">Independent companion</a><a href="#accounts">Accounts and rooms</a><a href="#fair-play">Fair play</a><a href="#content">Your game data</a><a href="#availability">Availability</a><a href="#responsibility">Gameplay responsibility</a><a href="#updates">Updates</a></>}</nav></aside>
+        <aside className="legal-index" aria-label={`${title} sections`}><span className="eyebrow">ON THIS PAGE</span><strong>{title}</strong><nav>{isPrivacy ? <><a href="#overview">Overview</a><a href="#information">Information we collect</a><a href="#local-modes">Demo and Banker Mode</a><a href="#use">How we use information</a><a href="#sharing">When information is shared</a><a href="#retention">Storage and retention</a><a href="#choices">Your choices</a><a href="#children">Children's privacy</a><a href="#changes">Changes</a></> : <><a href="#acceptance">Acceptance</a><a href="#service">The companion service</a><a href="#local-modes">Demo and Banker Mode</a><a href="#independent">Independent companion</a><a href="#accounts">Accounts and rooms</a><a href="#fair-play">Fair play</a><a href="#content">Your game data</a><a href="#availability">Availability</a><a href="#responsibility">Gameplay responsibility</a><a href="#updates">Updates</a></>}</nav></aside>
         <article className="legal-document">{isPrivacy ? <PrivacyPolicy /> : <TermsConditions />}<div className="legal-back-links"><a href="/faq">Have a question? Visit the FAQs</a><a href="/rules">Read the game rules</a></div></article>
       </div>
     </main>

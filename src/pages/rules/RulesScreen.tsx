@@ -84,8 +84,16 @@ export function RulesScreen() {
           <div className="rules-callout"><b>Important</b><span>Number cards score. Action cards and modifiers change the round but do not count toward the seven-card bonus.</span></div>
         </section>
 
+        <section className="rules-card rules-card-wide rules-card-modes">
+          <div className="rules-card-heading"><span className="eyebrow">CHOOSE YOUR MODE</span><b className="rules-number">04</b></div>
+          <h2>Same game, different table setup.</h2>
+          <p>Every mode uses the physical Flip 7 deck and the same scoring rules. Choose the setup that fits your group.</p>
+          <div className="rules-deck-details"><div><b>Demo mode</b><span>Practice on one device by yourself. Nothing is saved online, and the session ends when you leave or refresh.</span></div><div><b>Banker mode</b><span>Use one device for the whole group. The banker switches between player tables and records cards and actions locally.</span></div></div>
+          <div className="rules-callout"><b>For a shared game</b><span>Use multiplayer mode when each player needs their own device and the table should stay synchronized in real time.</span></div>
+        </section>
+
         <section className="rules-card rules-card-wide rules-card-modifiers">
-          <div className="rules-card-heading"><span className="eyebrow">MODIFIER CARDS</span><b className="rules-number">04</b></div>
+          <div className="rules-card-heading"><span className="eyebrow">MODIFIER CARDS</span><b className="rules-number">05</b></div>
           <h2>Add more points.</h2>
           <p>Modifier cards are not Number cards and do not count toward Flip 7. You cannot bust on a Modifier card. Add cards score their printed value, while <strong>×2</strong> doubles your Number card total for the round.</p>
           <RulesCardStrip cards={['+2', '+4', '+6', '+8', '+10', 'x2']} className="rules-modifier-strip" />
@@ -93,7 +101,7 @@ export function RulesScreen() {
         </section>
 
         <section className="rules-card rules-card-actions">
-          <div className="rules-card-heading"><span className="eyebrow">ACTION CARDS</span><b className="rules-number">05</b></div>
+          <div className="rules-card-heading"><span className="eyebrow">ACTION CARDS</span><b className="rules-number">06</b></div>
           <h2>Change the table.</h2>
           <div className="rules-action-list">
             <div><img src="/cards/SECOND CHANCE.png" alt="Second Chance card" /><p><b>Second Chance</b> cancels one duplicate. Discard it with the duplicate card and keep the rest of your round.</p></div>
@@ -104,14 +112,14 @@ export function RulesScreen() {
         </section>
 
         <section className="rules-card rules-card-active">
-          <div className="rules-card-heading"><span className="eyebrow">ACTIVE PLAYERS</span><b className="rules-number">06</b></div>
+          <div className="rules-card-heading"><span className="eyebrow">ACTIVE PLAYERS</span><b className="rules-number">07</b></div>
           <h2>Who can receive an action?</h2>
           <p>An active player has not busted and has not chosen to stay. Action cards can be played on any active player, including yourself. If you are the only active player, you must play the action on yourself.</p>
           <div className="rules-callout rules-callout-pink"><b>Remember</b><span>After a player busts or stays, they are no longer active for the round.</span></div>
         </section>
 
         <section className="rules-card rules-card-wide rules-card-scoring">
-          <div className="rules-card-heading"><span className="eyebrow">CALCULATE SCORES</span><b className="rules-number">07</b></div>
+          <div className="rules-card-heading"><span className="eyebrow">CALCULATE SCORES</span><b className="rules-number">08</b></div>
           <h2>Build your round score in order.</h2>
           <p className="rules-score-intro">Use the number cards in front of you, then apply modifiers and the Flip 7 bonus in this order.</p>
           <div className="rules-score-steps">
@@ -129,7 +137,7 @@ export function RulesScreen() {
         </section>
 
         <section className="rules-card rules-card-wide rules-card-end">
-          <div className="rules-card-heading"><span className="eyebrow">END OF A ROUND</span><b className="rules-number">08</b></div>
+          <div className="rules-card-heading"><span className="eyebrow">END OF A ROUND</span><b className="rules-number">09</b></div>
           <h2>Settle the table, then deal again.</h2>
           <div className="rules-end-grid"><div><b>End the round</b><p>The round ends when there are no active players because everyone has banked, frozen, or busted, or when a player flips seven unique number cards and earns the bonus.</p></div><div><b>Start the next round</b><p>Set every card from the round aside; do not shuffle those cards back in. Pass the remaining deck to the left so the next player becomes the dealer. If the deck runs out, shuffle the discarded cards to form a new deck.</p></div><div><b>End the game</b><p>When a round ends with at least one player at 200 points or more, the player with the most points wins.</p></div></div>
         </section>
