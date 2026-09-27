@@ -111,8 +111,12 @@
 .landing-footer-brand img { width: 235px; height: auto; object-fit: contain; mix-blend-mode: screen; }
 .landing-footer-brand p { max-width: 330px; margin: 18px 0 0; color: rgba(255, 247, 218, .72); font-size: 15px; line-height: 1.55; }
 .landing-footer-brand .landing-footer-disclaimer { margin-top: 14px; color: rgba(255, 247, 218, .58); font-size: 12px; line-height: 1.45; }
-.landing-footer-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; padding-top: 7px; }
+.landing-footer-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; padding-top: 7px; }
 .landing-footer-links div { display: grid; align-content: start; gap: 17px; }
+.landing-footer-links > div:nth-child(1) { order: 1; }
+.landing-footer-links > div:nth-child(3) { order: 2; }
+.landing-footer-links > div:nth-child(2) { order: 3; }
+.landing-footer-links > div:nth-child(4) { order: 4; }
 .landing-footer-links h3 { margin: 0 0 10px; color: #ffe05c; font-size: 11px; letter-spacing: .1em; }
 .landing-footer a { color: rgba(255, 247, 218, .72); font-size: 15px; text-decoration: none; }
 .landing-footer a:hover { color: #ffe05c; }
@@ -177,7 +181,7 @@ html.landing-active::-webkit-scrollbar-thumb:hover { background: #ffe05c; }
   .landing-footer-brand p { margin-inline: auto; }
   .landing-footer-links { grid-template-columns: repeat(2, 1fr); gap: 32px 18px; text-align: center; }
   .landing-footer-links h3 { text-align: center; }
-  .landing-footer-links > div:last-child { grid-column: 1 / -1; justify-items: center; }
+  .landing-footer-links > div { justify-items: center; }
   .landing-footer-bottom { justify-items: center; padding-right: 0; text-align: center; }
 }
 
@@ -199,8 +203,11 @@ html.landing-active::-webkit-scrollbar-thumb:hover { background: #ffe05c; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-nav, .landing-signin, .landing-primary, .landing-demo, .landing-secondary { transition: none; }
+.landing-nav, .landing-signin, .landing-primary, .landing-demo, .landing-secondary { transition: none; }
   .landing-mobile-menu { animation: none; }
 }
+
+/* Keep local modes available from their cards and footer, but out of the top navigation. */
+.landing-top-links a[href="/demo"], .landing-top-links a[href="/banker"], .landing-mobile-menu a[href="/demo"], .landing-mobile-menu a[href="/banker"] { display: none; }
 
 @keyframes mobile-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }

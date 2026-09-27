@@ -1,5 +1,6 @@
 @import './styles/base.css';
 @import './pages/game/GameScreen.css';
+@import './pages/game/BankerScreen.css';
 @import './pages/results/ResultsScreen.css';
 @import './pages/home/HomeScreen.css';
 @import './styles/lobby.css';

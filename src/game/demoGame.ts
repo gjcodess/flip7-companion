@@ -45,6 +45,32 @@ export function activeDemoEntries(entries: DemoEntry[]) {
   return entries.filter((entry) => !entry.voided)
 }
 
+const actionOrder: Record<string, number> = { 'action-second-chance': 0, 'action-freeze': 1, 'action-flip-three': 2 }
+
+function entryCategory(entry: DemoEntry) {
+  if (entry.voided) return 4
+  if (entry.card.kind === 'number') return 0
+  if (entry.card.id === 'modifier-x2') return 1
+  if (entry.card.kind === 'modifier') return 2
+  return 3
+}
+
+function entrySequence(entry: DemoEntry) {
+  return Number(entry.instanceId.replace('demo-card-', ''))
+}
+
+export function organizeDemoEntries(entries: DemoEntry[]) {
+  return [...entries].sort((a, b) => {
+    const categoryDifference = entryCategory(a) - entryCategory(b)
+    if (categoryDifference !== 0) return categoryDifference
+    if (a.voided && b.voided) return entrySequence(a) - entrySequence(b)
+    if (a.card.kind === 'number' && b.card.kind === 'number') return (a.card.points ?? 0) - (b.card.points ?? 0)
+    if (a.card.kind === 'modifier' && b.card.kind === 'modifier') return (a.card.points ?? 0) - (b.card.points ?? 0)
+    if (a.card.kind === 'action' && b.card.kind === 'action') return (actionOrder[a.card.id] ?? 99) - (actionOrder[b.card.id] ?? 99)
+    return entrySequence(a) - entrySequence(b)
+  })
+}
+
 export function scoreDemoEntries(entries: DemoEntry[], status: DemoStatus = 'active') {
   if (status === 'busted') return 0
   const cards = activeDemoEntries(entries).map((entry) => entry.card)
