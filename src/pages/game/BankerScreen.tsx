@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowUp, ClipboardList, LogOut, Play, RotateCcw, UserPlus, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Card } from '../../game/cards'
 import { allBankerPlayersSettled, bankerInitialState, bankerPlayerDerived, bankerReducer, isBankerTerminal, type BankerPlayer } from '../../game/bankerGame'
+import { organizeDemoEntries } from '../../game/demoGame'
 import { pointLabel } from '../../lib/app-utils'
 import { useAppNavigation } from '../../lib/navigation'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
@@ -67,7 +68,7 @@ function BankerSetup({ onStart }: { onStart: (targetScore: number, names: string
 function BankerResults({ players, history, targetScore, onNewGame, onExit }: { players: BankerPlayer[]; history: { round: number; scores: Record<string, number> }[]; targetScore: number; onNewGame: () => void; onExit: () => void }) {
   const ordered = [...players].sort((a, b) => b.totalScore - a.totalScore)
   const winnerScore = ordered[0]?.totalScore ?? 0
-  return <div className="banker-results"><section className="results-hero"><span className="eyebrow">BANKER TABLE COMPLETE</span><h1>Round the table.</h1><p>{ordered.filter((player) => player.totalScore === winnerScore).map((player) => player.name).join(' and ')} finished first to {targetScore}.</p></section><section className="results-card"><div className="results-heading"><div><span className="eyebrow">FINAL SCORES</span><h2>Game results</h2></div><ClipboardList size={24} /></div><div className="results-list">{ordered.map((player, index) => <article className={`results-player ${index === 0 ? 'winner' : ''}`} key={player.id}><span className="results-rank">{index + 1}</span><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div className="results-player-copy"><div className="results-player-name"><b>{player.name}</b><small>{player.totalScore} {pointLabel(player.totalScore)} total</small></div><div className="results-rounds">{history.map((round) => <span className="round-score" key={`${player.id}-${round.round}`}>R{round.round}: {round.scores[player.id] ?? 0}</span>)}</div></div><div className="results-total"><small>Total pts</small><strong>{player.totalScore}</strong></div></article>)}</div></section><section className="results-actions"><p>This banker game existed only on this device. Leaving or starting a new game clears it.</p><div className="banker-results-actions"><button className="secondary-action" onClick={onNewGame}><RotateCcw size={16} /> New banker game</button><button className="primary-wide" onClick={onExit}><ArrowLeft size={16} /> Exit</button></div></section></div>
+  return <div className="banker-results"><section className="results-hero"><span className="eyebrow">BANKER TABLE COMPLETE</span><h1>Round the table.</h1><p>{ordered.filter((player) => player.totalScore === winnerScore).map((player) => player.name).join(' and ')} finished first to {targetScore}.</p></section><section className="results-card"><div className="results-heading"><div><span className="eyebrow">FINAL SCORES</span><h2>Game results</h2></div><ClipboardList size={24} /></div><div className="results-list">{ordered.map((player, index) => <article className={`results-player ${index === 0 ? 'winner' : ''}`} key={player.id}><span className="results-rank">{index + 1}</span><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div className="results-player-copy"><div className="results-player-name"><b>{player.name}</b><small>{player.totalScore} {pointLabel(player.totalScore)} total</small></div><div className="results-rounds">{history.map((round) => <span className="round-score" key={`${player.id}-${round.round}`}>R{round.round}: {round.scores[player.id] ?? 0}</span>)}</div></div><div className="results-total"><small>Total pts</small><strong>{player.totalScore}</strong></div></article>)}</div></section><section className="results-actions"><p>This banker game existed only on this device. Leaving or starting a new game clears it.</p><div className="banker-results-actions"><button className="secondary-action" onClick={onNewGame}><RotateCcw size={16} /> New  game</button><button className="primary-wide" onClick={onExit}><ArrowLeft size={16} /> Exit</button></div></section></div>
 }
 
 export function BankerScreen() {
@@ -77,14 +78,18 @@ export function BankerScreen() {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [organized, setOrganized] = useState(false)
+  const [cardDialogClosing, setCardDialogClosing] = useState(false)
+  const [pendingAction, setPendingAction] = useState<Card | null>(null)
   const [roundSummaryOpen, setRoundSummaryOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
+  const cardSelectionRef = useRef(false)
+  const actionTargetRef = useRef(false)
   const selectedPlayer = state.players.find((player) => player.id === state.selectedPlayerId) ?? state.players[0]
   const derived = useMemo(() => selectedPlayer ? bankerPlayerDerived(selectedPlayer) : null, [selectedPlayer])
   const terminal = selectedPlayer ? isBankerTerminal(selectedPlayer.round.status) : false
   const allSettled = allBankerPlayersSettled(state)
   const canEdit = selectedPlayer?.round.status === 'active' || selectedPlayer?.round.status === 'busted'
-  const interactionLocked = pickerOpen || selectedCardIndex !== null || roundSummaryOpen || !canEdit
+  const interactionLocked = pickerOpen || selectedCardIndex !== null || cardDialogClosing || pendingAction !== null || roundSummaryOpen || !canEdit
   const table = selectedPlayer?.round.entries.map((entry) => entry.card) ?? []
   const cardIds = selectedPlayer?.round.entries.map((entry) => entry.instanceId) ?? []
 
@@ -100,8 +105,38 @@ export function BankerScreen() {
   const exit = () => navigate('/landing')
   const newRound = () => { dispatch({ type: 'advance-round' }); setRoundSummaryOpen(false); setOrganized(false) }
   const resetForNewGame = () => dispatch({ type: 'reset' })
-  const closePicker = () => { setPickerOpen(false); setEditingIndex(null) }
-  const selectCard = (card: Card) => { if (!selectedPlayer) return; dispatch({ type: 'player', playerId: selectedPlayer.id, action: editingIndex === null ? { type: 'add', card } : { type: 'replace', index: editingIndex, card } }); closePicker(); setOrganized(false) }
+  const closePicker = () => { cardSelectionRef.current = false; setCardDialogClosing(true); setPickerOpen(false); setEditingIndex(null) }
+  const selectCard = (card: Card) => {
+    if (!selectedPlayer || cardSelectionRef.current) return
+    cardSelectionRef.current = true
+    if (card.kind === 'action') {
+      actionTargetRef.current = false
+      setCardDialogClosing(true)
+      setPickerOpen(false)
+      setPendingAction(card)
+      return
+    }
+    dispatch({ type: 'player', playerId: selectedPlayer.id, action: editingIndex === null ? { type: 'add', card } : { type: 'replace', index: editingIndex, card } })
+    setCardDialogClosing(true)
+    setPickerOpen(false)
+    setEditingIndex(null)
+    setOrganized(false)
+  }
+  const closePendingAction = () => { actionTargetRef.current = false; cardSelectionRef.current = false; setCardDialogClosing(true); setPendingAction(null); setEditingIndex(null) }
+  const chooseActionTarget = (playerId: string) => {
+    if (!pendingAction || actionTargetRef.current) return
+    actionTargetRef.current = true
+    cardSelectionRef.current = true
+    if (editingIndex !== null && playerId === selectedPlayer?.id) dispatch({ type: 'player', playerId, action: { type: 'replace', index: editingIndex, card: pendingAction } })
+    else {
+      if (editingIndex !== null && selectedPlayer) dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'remove', index: editingIndex } })
+      dispatch({ type: 'player', playerId, action: { type: 'add', card: pendingAction } })
+    }
+    setPendingAction(null)
+    setEditingIndex(null)
+    setCardDialogClosing(true)
+    setOrganized(false)
+  }
   const organize = () => {
     if (!selectedPlayer) return
     if (organized) {
@@ -110,8 +145,7 @@ export function BankerScreen() {
       setOrganized(false)
       return
     }
-    const rank = (id: string) => id.startsWith('number-') ? 0 : id === 'modifier-x2' ? 1 : id.startsWith('modifier-') ? 2 : 3
-    dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'reorder', entries: [...selectedPlayer.round.entries].sort((a, b) => Number(a.voided) - Number(b.voided) || rank(a.card.id) - rank(b.card.id) || a.card.label.localeCompare(b.card.label)) } })
+    dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'reorder', entries: organizeDemoEntries(selectedPlayer.round.entries) } })
     setOrganized(true)
   }
   const playerStatus = selectedPlayer?.round.status === 'flip-seven' ? 'stayed' : selectedPlayer?.round.status
@@ -119,9 +153,15 @@ export function BankerScreen() {
     <header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={exit}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><span className="topbar-caption">BANKER MODE · LOCAL ONLY</span><button className="account-pill room-leave-button" onClick={exit}><LogOut size={15} /> Exit</button></header>
     <section className="match-strip"><div><span>ROUND</span><b>{String(state.roundNumber).padStart(2, '0')}</b></div><div className="target"><span>FIRST TO</span><b>{state.targetScore}</b></div><div><span>DEALER</span><b>{state.players.find((player) => player.id === state.dealerId)?.name || '—'}</b></div></section>
     <section className="banker-player-strip" aria-label="Player tables">{state.players.map((player) => <button key={player.id} className={`banker-player-tab opponent ${player.id === selectedPlayer?.id ? 'selected' : ''} ${statusClass(player)}`} onClick={() => { dispatch({ type: 'select-player', playerId: player.id }); setOrganized(false); setSelectedCardIndex(null) }}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><span className="opponent-copy"><b>{player.name}</b><span>{playerTabSummary(player)}</span></span><strong><small>Total pts:</small> <b>{player.totalScore}</b></strong></button>)}</section>
-    <GameTable table={table} tableCardIds={cardIds} isVoidedCard={(index) => Boolean(selectedPlayer?.round.entries[index]?.voided)} score={derived?.score ?? 0} flipSevenBonus={derived?.flipSevenBonus ?? 0} busted={selectedPlayer?.round.status === 'busted'} frozen={selectedPlayer?.round.status === 'frozen'} submitting={false} interactionLocked={interactionLocked} canEditCards={canEdit} confirmedAt={terminal ? 'banker' : null} isStaying={selectedPlayer?.round.status === 'stayed'} isOrganized={organized} playerName={selectedPlayer?.name ?? 'Player'} isHost={selectedPlayer?.id === state.dealerId} onOrganize={organize} onOpenPicker={() => { if (!interactionLocked) { setEditingIndex(null); setPickerOpen(true) } }} onSelectCard={(index) => { if (!interactionLocked) setSelectedCardIndex(index) }} />
+    <GameTable table={table} tableCardIds={cardIds} isVoidedCard={(index) => Boolean(selectedPlayer?.round.entries[index]?.voided)} score={derived?.score ?? 0} flipSevenBonus={derived?.flipSevenBonus ?? 0} busted={selectedPlayer?.round.status === 'busted'} frozen={selectedPlayer?.round.status === 'frozen'} submitting={false} interactionLocked={interactionLocked} canEditCards={canEdit} confirmedAt={terminal ? 'banker' : null} isStaying={selectedPlayer?.round.status === 'stayed'} isOrganized={organized} playerName={selectedPlayer?.name ?? 'Player'} isHost={selectedPlayer?.id === state.dealerId} onOrganize={organize} onOpenPicker={() => { if (!interactionLocked) { cardSelectionRef.current = false; setEditingIndex(null); setPickerOpen(true) } }} onSelectCard={(index) => { if (!interactionLocked) setSelectedCardIndex(index) }} />
     <GameControls isHost allPlayersSettled={allSettled} submitting={false} canEditCards={canEdit} hasCardsOrRemoval={table.length > 0} hasRedo={Boolean(selectedPlayer?.round.future.length)} isStaying={selectedPlayer?.round.status === 'stayed'} busted={selectedPlayer?.round.status === 'busted'} frozen={selectedPlayer?.round.status === 'frozen'} numberCardCount={derived?.numberCardCount ?? 0} playerStatus={playerStatus} confirmedAt={terminal ? 'banker' : null} onNextRound={newRound} onUndo={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'undo' } })} onStay={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'stay' } })} onRedo={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'redo' } })} />
   </main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
-    <AnimatePresence>{selectedCardIndex !== null && selectedPlayer?.round.entries[selectedCardIndex] && <motion.div className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedCardIndex(null)}><CardActionsPanel card={selectedPlayer.round.entries[selectedCardIndex].card} cardVoided={selectedPlayer.round.entries[selectedCardIndex].voided} submitting={false} onClose={() => setSelectedCardIndex(null)} onEdit={() => { setEditingIndex(selectedCardIndex); setSelectedCardIndex(null); setPickerOpen(true) }} onRemove={() => { dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'remove', index: selectedCardIndex } }); setSelectedCardIndex(null); setOrganized(false) }} /></motion.div>}{pickerOpen && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closePicker}><CardPickerPanel submitting={false} onClose={closePicker} onSelect={selectCard} /></motion.div>}{roundSummaryOpen && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><motion.section className="card-picker banker-summary" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ROUND {String(state.roundNumber).padStart(2, '0')} COMPLETE</span><h2>Everyone is settled.</h2></div><button className="close-button" aria-label="Close round summary" onClick={() => setRoundSummaryOpen(false)}><X size={19} /></button></div><div className="banker-round-summary-list">{state.players.map((player) => <div key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><b>{player.name}</b><span className={`banker-status-pill ${statusClass(player)}`}>{statusLabel(player)}</span><strong>{bankerPlayerDerived(player).score}</strong></div>)}</div><p>Confirm the local scores, then rotate the dealer and start the next round.</p><div className="banker-results-actions"><button className="secondary-action" onClick={resetForNewGame}><RotateCcw size={16} /> New game</button><button className="primary-wide" onClick={newRound}><Play size={16} /> Next round</button></div></motion.section></motion.div>}{rulesOpen && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRulesOpen(false)}><motion.section className="card-picker info-panel" initial={{ y: 50 }} animate={{ y: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>BANKER MODE</span><h2>How it works</h2></div><button className="close-button" aria-label="Close rules" onClick={() => setRulesOpen(false)}><X size={19} /></button></div><div className="rules-copy"><section><h3>Select a player</h3><p>Use the ordered player tabs to switch tables. The selected player receives the next card you log.</p></section><section><h3>Log the physical deck</h3><p>Choose cards as they appear. Number duplicates bust that player unless they have a Second Chance. Freeze and Flip Three follow the same rules as a live table.</p></section><section><h3>Settle the round</h3><p>When every player has banked, frozen, busted, or flipped seven, review the local scores and continue to the next round.</p></section></div></motion.section></motion.div>}</AnimatePresence>
+    <AnimatePresence onExitComplete={() => { setCardDialogClosing(false); cardSelectionRef.current = false }}>
+      {selectedCardIndex !== null && selectedPlayer?.round.entries[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => { setCardDialogClosing(true); setSelectedCardIndex(null) }}><CardActionsPanel card={selectedPlayer.round.entries[selectedCardIndex].card} cardVoided={selectedPlayer.round.entries[selectedCardIndex].voided} submitting={false} onClose={() => { setCardDialogClosing(true); setSelectedCardIndex(null) }} onEdit={() => { setEditingIndex(selectedCardIndex); setSelectedCardIndex(null); setPickerOpen(true) }} onRemove={() => { dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'remove', index: selectedCardIndex } }); setSelectedCardIndex(null); setOrganized(false) }} /></motion.div>}
+      {pickerOpen && <motion.div key="card-picker" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closePicker}><CardPickerPanel submitting={false} onClose={closePicker} onSelect={selectCard} /></motion.div>}
+      {pendingAction && <motion.div key="action-target" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closePendingAction}><motion.section className="card-picker" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }} transition={{ duration: .14, ease: 'easeOut' }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button className="close-button" aria-label="Close action target" title="Close" onClick={closePendingAction}><X size={19} /></button></div><p>Select the player who receives this action card. The card will be logged on that player’s local table.</p><div className="target-list banker-target-list">{state.players.map((player) => <button key={player.id} onClick={() => chooseActionTarget(player.id)}>{player.name}</button>)}</div></motion.section></motion.div>}
+      {roundSummaryOpen && <motion.div key="round-summary" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }}><motion.section className="card-picker banker-summary" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ROUND {String(state.roundNumber).padStart(2, '0')} COMPLETE</span><h2>Everyone is settled.</h2></div><button className="close-button" aria-label="Close round summary" onClick={() => setRoundSummaryOpen(false)}><X size={19} /></button></div><div className="banker-round-summary-list">{state.players.map((player) => <div className={`banker-summary-player ${statusClass(player)}`} key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div className="banker-summary-player-copy"><b>{player.name}</b><span className={`banker-status-pill ${statusClass(player)}`}>{statusLabel(player)}</span></div><div className="banker-summary-score"><small>ROUND</small><strong>{bankerPlayerDerived(player).score}</strong></div></div>)}</div><p>Confirm the local scores, then rotate the dealer and start the next round.</p><div className="banker-results-actions"><button className="secondary-action" onClick={resetForNewGame}><RotateCcw size={16} /> New game</button><button className="primary-wide" onClick={newRound}><Play size={16} /> Next round</button></div></motion.section></motion.div>}
+      {rulesOpen && <motion.div key="rules" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setRulesOpen(false)}><motion.section className="card-picker info-panel" initial={{ y: 50 }} animate={{ y: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>BANKER MODE</span><h2>How it works</h2></div><button className="close-button" aria-label="Close rules" onClick={() => setRulesOpen(false)}><X size={19} /></button></div><div className="rules-copy"><section><h3>Select a player</h3><p>Use the ordered player tabs to switch tables. The selected player receives the next card you log.</p></section><section><h3>Log the physical deck</h3><p>Choose cards as they appear. Number duplicates bust that player unless they have a Second Chance. Freeze and Flip Three follow the same rules as a live table.</p></section><section><h3>Settle the round</h3><p>When every player has banked, frozen, busted, or flipped seven, review the local scores and continue to the next round.</p></section></div></motion.section></motion.div>}
+    </AnimatePresence>
   </div>
 }

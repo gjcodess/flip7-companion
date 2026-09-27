@@ -54,17 +54,27 @@
 .banker-player-tab > strong { position: absolute; left: 42px; right: auto; bottom: 7px; display: flex; align-items: center; gap: 3px; font-size: 12px; line-height: 1; white-space: nowrap; }
 .banker-player-tab > strong small { font-size: 8px; font-weight: 800; line-height: 1; transform: translateY(1px); }
 .banker-player-tab > strong b { font-size: 12px; line-height: 1; transform: translateY(1px); }
-.banker-summary { padding-bottom: 22px; }
-.banker-round-summary-list { display: grid; gap: 7px; margin: 16px 0; }
-.banker-round-summary-list > div { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 7px; min-height: 40px; padding: 6px 8px; border: 2px solid #132d67; background: #fffdf5; }
-.banker-round-summary-list .mini-avatar { width: 28px; height: 28px; }
-.banker-round-summary-list b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.banker-round-summary-list strong { min-width: 28px; font-size: 16px; text-align: right; }
+.banker-summary { padding: 20px 18px 22px; }
+.banker-summary .picker-heading { gap: 14px; }
+.banker-summary .picker-heading > div:first-child span { color: #ed4f7e; }
+.banker-summary .picker-heading h2 { font-size: 27px; }
+.banker-round-summary-list { display: grid; gap: 9px; margin: 18px 0; }
+.banker-round-summary-list > div { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 58px; padding: 8px 10px; border: 2px solid #132d67; background: #fffdf5; box-shadow: 2px 2px 0 #132d67; }
+.banker-round-summary-list > div.busted { border-color: #c32950; background: #fff0f2; box-shadow: 2px 2px 0 #c32950; }
+.banker-round-summary-list > div.frozen { border-color: #2b7897; background: #e9f7fa; box-shadow: 2px 2px 0 #2b7897; }
+.banker-round-summary-list > div.stayed { border-color: #4d8a45; background: #f0f8df; box-shadow: 2px 2px 0 #4d8a45; }
+.banker-round-summary-list .mini-avatar { width: 30px; height: 30px; }
+.banker-summary-player-copy { min-width: 0; display: grid; justify-items: start; gap: 5px; }
+.banker-summary-player-copy b { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.banker-summary-score { display: grid; justify-items: end; gap: 1px; min-width: 48px; }
+.banker-summary-score small { color: #4d5c79; font-size: 7px; font-weight: 1000; letter-spacing: .1em; }
+.banker-summary-score strong { color: #132d67; font-size: 22px; line-height: 1; }
 .banker-status-pill { padding: 3px 5px; border: 1px solid #132d67; color: #132d67; font-size: 8px; font-weight: 1000; text-transform: uppercase; }
 .banker-status-pill.busted { border-color: #c32950; background: #ffe4e7; color: #8e1534; }
 .banker-status-pill.frozen { border-color: #2b7897; background: #dff3f8; }
 .banker-status-pill.stayed { border-color: #4d8a45; background: #eef6d9; color: #24703c; }
 .banker-summary > p { margin: 0 0 15px; font-size: 12px; line-height: 1.4; }
+.banker-target-list button { text-align: left; }
 .banker-results-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .banker-results-actions button { min-height: 45px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 8px; border: 3px solid #132d67; box-shadow: 3px 3px 0 #132d67; font-size: 11px; font-weight: 1000; cursor: pointer; }
 .banker-results-actions .secondary-action { background: #fffdf5; color: #132d67; }
@@ -74,4 +84,4 @@
 .banker-results .results-card { margin-top: 18px; }
 .banker-results .results-actions { display: grid; gap: 12px; }
 .banker-results .results-actions p { margin-bottom: 0; }
-@media (max-width: 520px) { .banker-topbar .topbar-caption { display: none; }.banker-player-tab { flex-basis: 125px; }.banker-round-summary-list > div { grid-template-columns: 28px minmax(0, 1fr) auto; }.banker-status-pill { grid-column: 2; grid-row: 2; justify-self: start; }.banker-round-summary-list strong { grid-row: span 2; }.banker-hero > svg { width: 40px; height: 40px; } }
+@media (max-width: 520px) { .banker-topbar .topbar-caption { display: none; }.banker-player-tab { flex-basis: 125px; }.banker-hero > svg { width: 40px; height: 40px; } }

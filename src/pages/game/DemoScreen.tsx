@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react'
 import { ArrowLeft, CircleHelp, LogOut, RotateCcw, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import type { Card } from '../../game/cards'
-import { demoDerived, demoInitialState, demoReducer, type DemoStatus } from '../../game/demoGame'
+import { demoDerived, demoInitialState, demoReducer, organizeDemoEntries, type DemoStatus } from '../../game/demoGame'
 import { pointLabel } from '../../lib/app-utils'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
 import { GameControls } from './GameControls'
@@ -59,8 +59,7 @@ export function DemoScreen() {
       setOrganized(false)
       return
     }
-    const rank = (id: string) => id.startsWith('number-') ? 0 : id === 'modifier-x2' ? 1 : id.startsWith('modifier-') ? 2 : 3
-    dispatch({ type: 'reorder', entries: [...state.entries].sort((a, b) => Number(a.voided) - Number(b.voided) || rank(a.card.id) - rank(b.card.id) || a.card.label.localeCompare(b.card.label)) })
+    dispatch({ type: 'reorder', entries: organizeDemoEntries(state.entries) })
     setOrganized(true)
   }
   const statusLabel = state.status === 'busted' ? 'BUSTED' : state.status === 'frozen' ? 'FROZEN' : state.status === 'flip-seven' ? 'FLIP 7!' : state.status === 'stayed' ? 'BANKED' : 'ACTIVE'
