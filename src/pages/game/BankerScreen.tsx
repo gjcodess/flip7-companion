@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronUp, ClipboardList, ListOrdered, LogOut, Play, RotateCcw, UserPlus, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, ClipboardList, LogOut, Play, RotateCcw, UserPlus, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Card } from '../../game/cards'
 import { allBankerPlayersSettled, bankerInitialState, bankerPlayerDerived, bankerReducer, isBankerTerminal, type BankerPlayer } from '../../game/bankerGame'
@@ -18,6 +18,16 @@ function statusLabel(player: BankerPlayer) {
 
 function statusClass(player: BankerPlayer) {
   return player.round.status === 'flip-seven' ? 'stayed' : player.round.status
+}
+
+function playerTabSummary(player: BankerPlayer) {
+  const derived = bankerPlayerDerived(player)
+  const numberCardCount = player.round.entries.filter((entry) => !entry.voided && entry.card.kind === 'number').length
+  if (player.round.status === 'active') return `${numberCardCount} cards · ${derived.score} ${pointLabel(derived.score)}`
+  if (player.round.status === 'stayed') return `Banked · ${derived.score} ${pointLabel(derived.score)}`
+  if (player.round.status === 'frozen') return `Frozen · ${derived.score} ${pointLabel(derived.score)}`
+  if (player.round.status === 'flip-seven') return `Flip 7 · ${derived.score} ${pointLabel(derived.score)}`
+  return 'Busted'
 }
 
 function BankerSetup({ onStart }: { onStart: (targetScore: number, names: string[]) => void }) {
@@ -107,10 +117,8 @@ export function BankerScreen() {
   const playerStatus = selectedPlayer?.round.status === 'flip-seven' ? 'stayed' : selectedPlayer?.round.status
   return <div className="app-shell banker-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell">
     <header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={exit}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><span className="topbar-caption">BANKER MODE · LOCAL ONLY</span><button className="account-pill room-leave-button" onClick={exit}><LogOut size={15} /> Exit</button></header>
-    <section className="banker-round-heading"><div><span className="eyebrow">ONE DEVICE TABLE</span><h1>Banker view</h1></div><button className="demo-rules-button" onClick={() => setRulesOpen(true)}><ClipboardList size={16} /> Rules</button></section>
     <section className="match-strip"><div><span>ROUND</span><b>{String(state.roundNumber).padStart(2, '0')}</b></div><div className="target"><span>FIRST TO</span><b>{state.targetScore}</b></div><div><span>DEALER</span><b>{state.players.find((player) => player.id === state.dealerId)?.name || '—'}</b></div></section>
-    <section className="banker-player-strip" aria-label="Player tables">{state.players.map((player, index) => { const playerDerived = bankerPlayerDerived(player); return <button key={player.id} className={`banker-player-tab ${player.id === selectedPlayer?.id ? 'selected' : ''} ${statusClass(player)}`} onClick={() => { dispatch({ type: 'select-player', playerId: player.id }); setOrganized(false); setSelectedCardIndex(null) }}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><span className="banker-player-tab-copy"><b>{player.name}</b><small>{statusLabel(player)} · {player.totalScore + playerDerived.score}</small></span><span className="banker-order-controls"><i>{index + 1}</i><span><em onClick={(event) => { event.stopPropagation(); dispatch({ type: 'move-player', playerId: player.id, direction: -1 }) }}><ChevronUp size={12} /></em><em onClick={(event) => { event.stopPropagation(); dispatch({ type: 'move-player', playerId: player.id, direction: 1 }) }}><ChevronDown size={12} /></em></span></span></button> })}</section>
-    <div className="banker-selected-note"><ListOrdered size={14} /> Logging cards for <b>{selectedPlayer?.name}</b> · choose another player above to switch tables.</div>
+    <section className="banker-player-strip" aria-label="Player tables">{state.players.map((player) => <button key={player.id} className={`banker-player-tab opponent ${player.id === selectedPlayer?.id ? 'selected' : ''} ${statusClass(player)}`} onClick={() => { dispatch({ type: 'select-player', playerId: player.id }); setOrganized(false); setSelectedCardIndex(null) }}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><span className="opponent-copy"><b>{player.name}</b><span>{playerTabSummary(player)}</span></span><strong><small>Total pts:</small> <b>{player.totalScore}</b></strong></button>)}</section>
     <GameTable table={table} tableCardIds={cardIds} isVoidedCard={(index) => Boolean(selectedPlayer?.round.entries[index]?.voided)} score={derived?.score ?? 0} flipSevenBonus={derived?.flipSevenBonus ?? 0} busted={selectedPlayer?.round.status === 'busted'} frozen={selectedPlayer?.round.status === 'frozen'} submitting={false} interactionLocked={interactionLocked} canEditCards={canEdit} confirmedAt={terminal ? 'banker' : null} isStaying={selectedPlayer?.round.status === 'stayed'} isOrganized={organized} playerName={selectedPlayer?.name ?? 'Player'} isHost={selectedPlayer?.id === state.dealerId} onOrganize={organize} onOpenPicker={() => { if (!interactionLocked) { setEditingIndex(null); setPickerOpen(true) } }} onSelectCard={(index) => { if (!interactionLocked) setSelectedCardIndex(index) }} />
     <GameControls isHost allPlayersSettled={allSettled} submitting={false} canEditCards={canEdit} hasCardsOrRemoval={table.length > 0} hasRedo={Boolean(selectedPlayer?.round.future.length)} isStaying={selectedPlayer?.round.status === 'stayed'} busted={selectedPlayer?.round.status === 'busted'} frozen={selectedPlayer?.round.status === 'frozen'} numberCardCount={derived?.numberCardCount ?? 0} playerStatus={playerStatus} confirmedAt={terminal ? 'banker' : null} onNextRound={newRound} onUndo={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'undo' } })} onStay={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'stay' } })} onRedo={() => selectedPlayer && dispatch({ type: 'player', playerId: selectedPlayer.id, action: { type: 'redo' } })} />
   </main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>
