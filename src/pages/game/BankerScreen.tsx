@@ -34,7 +34,7 @@ function playerTabSummary(player: BankerPlayer) {
 
 function BankerSetup({ onStart }: { onStart: (targetScore: number, names: string[]) => void }) {
   const [names, setNames] = useState(defaultNames)
-  const [targetScore, setTargetScore] = useState(200)
+  const [targetScore, setTargetScore] = useState<number | ''>(200)
   const [warning, setWarning] = useState('')
   const updateName = (index: number, name: string) => setNames((current) => current.map((value, valueIndex) => valueIndex === index ? name : value))
   const moveName = (index: number, direction: -1 | 1) => setNames((current) => {
@@ -48,18 +48,20 @@ function BankerSetup({ onStart }: { onStart: (targetScore: number, names: string
     const cleaned = names.map((name) => name.trim())
     if (cleaned.some((name) => !name)) return setWarning('Every player needs a name.')
     if (new Set(cleaned.map((name) => name.toLowerCase())).size !== cleaned.length) return setWarning('Player names must be unique.')
+    if (typeof targetScore !== 'number' || !Number.isInteger(targetScore) || targetScore < 50 || targetScore > 500) return setWarning('First-to target must be between 50 and 500.')
     setWarning('')
     onStart(targetScore, cleaned)
   }
   const cleanedNames = names.map((name) => name.trim())
-  const canStart = cleanedNames.every(Boolean) && new Set(cleanedNames.map((name) => name.toLowerCase())).size === cleanedNames.length
+  const validTarget = typeof targetScore === 'number' && Number.isInteger(targetScore) && targetScore >= 50 && targetScore <= 500
+  const canStart = cleanedNames.every(Boolean) && new Set(cleanedNames.map((name) => name.toLowerCase())).size === cleanedNames.length && validTarget
   return <div className="banker-setup-wrap">
     <section className="banker-hero"><div><span className="eyebrow">BANKER TABLE</span><h1>Run the table.</h1><p>One device for the banker. Log each physical card, switch player tables, and keep the round moving.</p></div><ClipboardList size={54} aria-hidden="true" /></section>
     <section className="banker-setup-card">
       <div className="banker-section-heading"><div><span className="eyebrow">SET UP PLAYERS</span><h2>Who is at the table?</h2></div><span className="banker-count">{names.length}/18</span></div>
       <p className="banker-muted">Set the order used for player switching and dealer rotation. You can change the order during the game.</p>
       <div className="banker-name-list">{names.map((name, index) => <div className="banker-name-row" key={`draft-${index}`}><span className="banker-seat-number">{String(index + 1).padStart(2, '0')}</span><input value={name} placeholder={`Player ${index + 1}`} maxLength={24} aria-label={`Player ${index + 1} name`} onChange={(event) => updateName(index, event.target.value)} /><div className="banker-order-actions"><button type="button" className="banker-order-button" aria-label={`Move ${name || `player ${index + 1}`} up`} title="Move up" disabled={index === 0} onClick={() => moveName(index, -1)}><ArrowUp size={15} /></button><button type="button" className="banker-order-button" aria-label={`Move ${name || `player ${index + 1}`} down`} title="Move down" disabled={index === names.length - 1} onClick={() => moveName(index, 1)}><ArrowDown size={15} /></button></div>{names.length > 3 && <button type="button" className="banker-remove-player" aria-label={`Remove ${name || `player ${index + 1}`}`} onClick={() => setNames((current) => current.filter((_, valueIndex) => valueIndex !== index))}><X size={16} /></button>}</div>)}</div>
-      <div className="banker-setup-actions"><button type="button" className="banker-add-player" disabled={names.length >= 18} onClick={() => setNames((current) => [...current, ''])}><UserPlus size={16} /> Add player</button><label className="banker-target-control"><span>FIRST TO</span><div className="banker-target-value"><input type="number" min="50" max="500" value={targetScore} aria-label="First to target score" onChange={(event) => setTargetScore(Math.max(50, Math.min(500, Number(event.target.value) || 50)))} /><b>PTS</b></div></label></div>
+      <div className="banker-setup-actions"><button type="button" className="banker-add-player" disabled={names.length >= 18} onClick={() => setNames((current) => [...current, ''])}><UserPlus size={16} /> Add player</button><label className="banker-target-control"><span>FIRST TO</span><div className="banker-target-value"><input type="number" min="50" max="500" value={targetScore} aria-label="First to target score" onChange={(event) => setTargetScore(event.target.value === '' ? '' : Number(event.target.value))} /><b>PTS</b></div></label></div>
       {warning && <p className="banker-warning" role="alert">{warning}</p>}
       <button type="button" className="primary-wide banker-start-button" disabled={!canStart} onClick={start}><Play size={17} /> Start banker table</button>
     </section>

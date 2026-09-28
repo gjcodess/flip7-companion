@@ -16,11 +16,12 @@ export function JoinGameForm({ name, joinCode, setJoinCode, busy, onJoin }: Join
 }
 
 type HostGameFormProps = SharedProps & {
-  target: number
-  setTarget: (score: number) => void
+  target: number | ''
+  setTarget: (score: number | '') => void
+  canSubmit: boolean
   onCreate: () => void
 }
 
-export function HostGameForm({ name, target, setTarget, busy, onCreate }: HostGameFormProps) {
-  return <article className="lobby-card"><span className="eyebrow">HOST A GAME</span><h2>Start a table</h2><div className="active-player"><span>Playing as</span><b>{name}</b></div><span className="field-label">TARGET SCORE</span><div className="target-options">{[100, 200, 300].map((score) => <button key={score} className={target === score ? 'selected' : ''} onClick={() => setTarget(score)}>{score}</button>)}</div><label>Custom target (50–500)<input type="number" min="50" max="500" value={target} onChange={(e) => setTarget(Math.max(50, Math.min(500, Number(e.target.value))))} /></label><button className="primary-wide" disabled={busy !== null} onClick={onCreate}>{busy === 'create' ? <LoaderCircle className="spin" /> : <Play />} Create room</button></article>
+export function HostGameForm({ name, target, setTarget, busy, canSubmit, onCreate }: HostGameFormProps) {
+  return <article className="lobby-card"><span className="eyebrow">HOST A GAME</span><h2>Start a table</h2><div className="active-player"><span>Playing as</span><b>{name}</b></div><span className="field-label">TARGET SCORE</span><div className="target-options">{[100, 200, 300].map((score) => <button key={score} className={target === score ? 'selected' : ''} onClick={() => setTarget(score)}>{score}</button>)}</div><label>Custom target (50–500)<input type="number" min="50" max="500" value={target} onChange={(e) => setTarget(e.target.value === '' ? '' : Number(e.target.value))} /></label><button className="primary-wide" disabled={busy !== null || !canSubmit} onClick={onCreate}>{busy === 'create' ? <LoaderCircle className="spin" /> : <Play />} Create room</button></article>
 }
