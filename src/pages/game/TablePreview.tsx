@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { CircleHelp, Crown, LogOut, Users, X } from 'lucide-react'
+import { CircleHelp, Crown, LogOut, Play, Users, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { cardFromCode, demoTable, type Card } from '../../game/cards'
 import { supabase } from '../../lib/supabase'
-import { confirmRoundResult, DEGRADED_REFRESH_INTERVAL_MS, finalizeRound, getLiveRound, HEALTHY_REFRESH_INTERVAL_MS, PRESENCE_SYNC_INTERVAL_MS, REALTIME_INVALIDATION_DEBOUNCE_MS, recordRoundCard, stayInRound, syncRoomPresence, voidRoundCard, type LiveRound } from '../../lib/room'
+import { confirmRoundResult, DEGRADED_REFRESH_INTERVAL_MS, finalizeRound, getLiveRound, HEALTHY_REFRESH_INTERVAL_MS, PRESENCE_SYNC_INTERVAL_MS, REALTIME_INVALIDATION_DEBOUNCE_MS, recordRoundCard, stayInRound, syncRoomPresence, voidRoundCard, type LiveRound, type RoundPlayer } from '../../lib/room'
 import { cardCode, errorMessage, pointLabel, withTimeout } from '../../lib/app-utils'
 import { RoomCode } from '../../components/RoomCode'
 import { HomePrompt } from '../../components/HomePrompt'
@@ -12,6 +12,7 @@ import { GameTable } from './GameTable'
 import { OpponentStrip, type Player } from './OpponentStrip'
 import { GameControls } from './GameControls'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
+import { useAppNavigation } from '../../lib/navigation'
 
 const demoPlayers: Player[] = [
   { id: 'maya', name: 'Maya', score: 82, roundScore: 24, state: 'active', color: '#ed4f7e', cards: 4 },
@@ -28,7 +29,20 @@ function scoreTable(cards: Card[]) {
   return numberTotalWithMultiplier + modifierTotal + flipSevenBonus
 }
 
+function roundStatusLabel(player: RoundPlayer) {
+  if (player.flip_seven_bonus > 0) return 'Flip 7!'
+  if (player.status === 'stayed') return 'Banked'
+  if (player.status === 'frozen') return 'Frozen'
+  if (player.status === 'busted') return 'Busted'
+  return 'Active'
+}
+
+function roundStatusClass(player: RoundPlayer) {
+  return player.flip_seven_bonus > 0 ? 'stayed' : player.status
+}
+
 export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName = 'Glen', hostUserId, roomId, user, onLeave }: { roomCode?: string; targetScore?: number; hostName?: string; hostUserId?: string; roomId?: string; user?: User; onLeave?: () => void }) {
+  const navigate = useAppNavigation()
   const [table, setTable] = useState<Card[]>(roomId ? [] : demoTable)
   const [tableCardIds, setTableCardIds] = useState<string[]>([])
   const [tableVoidedIds, setTableVoidedIds] = useState<string[]>([])
@@ -44,6 +58,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const [showMenu, setShowMenu] = useState(false)
   const [showHomePrompt, setShowHomePrompt] = useState(false)
   const [openPanel, setOpenPanel] = useState<'players' | 'rules' | null>(null)
+  const [roundSummaryOpen, setRoundSummaryOpen] = useState(false)
   const [, setToast] = useState('')
   const [isStaying, setIsStaying] = useState(false)
   const [stayPrompt, setStayPrompt] = useState<'stay' | 'confirm' | null>(null)
@@ -63,6 +78,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const refreshQueuedRef = useRef(false)
   const queuedPreserveCardIndexRef = useRef<number | undefined>(undefined)
   const timerRoomIdRef = useRef<string | undefined>(undefined)
+  const autoFlipSevenRoundRef = useRef<string | null>(null)
   useEffect(() => {
     if (!pickerOpen && !pickerQueued && !submitting && !pendingAction) actionLockRef.current = false
   }, [pickerOpen, pickerQueued, submitting, pendingAction])
@@ -201,11 +217,37 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
   const flipSevenBonus = mine?.flip_seven_bonus ?? (numberCardCount >= 7 ? 15 : 0)
   const headerScore = mine?.total_score ?? score
   const visiblePlayers: Player[] = roomId ? (liveRound ? liveRound.players.filter((player) => player.user_id !== user?.id).map((player) => ({ id: player.id, userId: player.user_id, name: player.profiles?.display_name || 'Player', score: player.total_score, roundScore: player.round_score, state: player.status, color: player.profiles?.avatar_color || '#57b8d7', cards: liveRound.cards.filter((card) => card.round_player_id === player.id && card.card_code.startsWith('number:') && card.voided_at === null).length, isHost: player.user_id === hostUserId })) : []) : demoPlayers
-  const canEditCards = roomId ? mine?.status === 'busted' || (mine?.status === 'active' && mine.confirmed_at === null) : !isStaying
   const isHost = hostUserId === user?.id
   const playerName = mine?.profiles?.display_name || String(user?.user_metadata.display_name || 'Player').trim() || 'Player'
   const allPlayersSettled = Boolean(roomId && liveRound?.players.length && liveRound.players.every((player) => player.status !== 'active' && player.confirmed_at !== null))
-  const cardInteractionLocked = submitting || pickerOpen || pickerQueued || selectedCardIndex !== null || cardDialogClosing || pendingAction !== null || targetDialogClosing
+  const flipSevenSettling = Boolean(roomId && mine?.status === 'active' && numberCardCount >= 7)
+  const canEditCards = roomId ? mine?.status === 'busted' || (mine?.status === 'active' && mine.confirmed_at === null && !flipSevenSettling) : !isStaying
+  const cardInteractionLocked = submitting || pickerOpen || pickerQueued || selectedCardIndex !== null || cardDialogClosing || pendingAction !== null || targetDialogClosing || roundSummaryOpen
+
+  useEffect(() => {
+    if (!roomId || !liveRound?.id || !mine || mine.status !== 'active' || numberCardCount < 7 || autoFlipSevenRoundRef.current === liveRound.id) return
+    autoFlipSevenRoundRef.current = liveRound.id
+    actionLockRef.current = true
+    setSubmitting(true)
+    void (async () => {
+      try {
+        await withTimeout(stayInRound(roomId))
+        await withTimeout(confirmRoundResult(roomId))
+        await withTimeout(refreshLiveRound())
+        setToast('Flip 7! Round score confirmed.')
+      } catch (caught) {
+        setToast(errorMessage(caught, 'Could not settle Flip 7 automatically.'))
+      } finally {
+        setSubmitting(false)
+        actionLockRef.current = false
+      }
+    })()
+  }, [roomId, liveRound?.id, mine?.status, numberCardCount])
+
+  useEffect(() => {
+    if (isHost && allPlayersSettled) setRoundSummaryOpen(true)
+    if (!allPlayersSettled) setRoundSummaryOpen(false)
+  }, [allPlayersSettled, isHost])
   const closePicker = () => {
     cardSelectionRef.current = false
     dialogLockRef.current = true
@@ -516,6 +558,8 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
 
       <AnimatePresence>{stayPrompt && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setStayPrompt(null)}><motion.section className="card-picker home-prompt" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>STAY / BANK</span><h2>Stay for this round?</h2></div><button className="close-button" aria-label="Cancel" title="Cancel" onClick={() => setStayPrompt(null)}><X size={19} /></button></div><p className="home-prompt-copy">Your score will be saved and your round will be confirmed. You will wait for the other players.</p><div className="home-prompt-actions"><button className="secondary-action" onClick={() => setStayPrompt(null)}>Cancel</button><button className="primary-wide" onClick={() => void completeStayPrompt()}><span className="button-content">Confirm stay</span></button></div></motion.section></motion.div>}</AnimatePresence>
 
+      <AnimatePresence>{roundSummaryOpen && isHost && liveRound && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setRoundSummaryOpen(false)}><motion.section className="card-picker multiplayer-summary" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ROUND {String(liveRound.number).padStart(2, '0')} COMPLETE</span><h2>Everyone is settled.</h2></div><button className="close-button" aria-label="Close round summary" title="Close" onClick={() => setRoundSummaryOpen(false)}><X size={19} /></button></div><div className="multiplayer-round-summary-list">{liveRound.players.map((player) => <div className={`multiplayer-summary-player ${roundStatusClass(player)}`} key={player.id}><span className="mini-avatar" style={{ background: player.profiles?.avatar_color || '#57b8d7' }}>{player.profiles?.display_name?.[0] || '?'}</span><div className="multiplayer-summary-player-copy"><b>{player.profiles?.display_name || 'Player'}</b><span className={`multiplayer-status-pill ${roundStatusClass(player)}`}>{roundStatusLabel(player)}</span></div><div className="multiplayer-summary-score"><small>ROUND</small><strong>{player.round_score}</strong></div></div>)}</div><p>Confirm the round scores, then start the next round.</p><div className="multiplayer-summary-actions"><button className="secondary-action" onClick={() => setRoundSummaryOpen(false)}>Close</button><button className="primary-wide" disabled={submitting} onClick={() => void proceedToNextRound()}><Play size={16} /> Next round</button></div></motion.section></motion.div>}</AnimatePresence>
+
       <AnimatePresence mode="wait" onExitComplete={() => { setCardDialogClosing(false); if (pickerQueued) { setPickerQueued(false); setPickerOpen(true) } else if (!pendingAction) dialogLockRef.current = false }}>
         {selectedCardIndex !== null && table[selectedCardIndex] && <motion.div key="card-actions" className="picker-backdrop card-focus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeCardActions}><CardActionsPanel card={table[selectedCardIndex]} cardVoided={isVoidedCard(selectedCardIndex)} submitting={submitting} onClose={closeCardActions} onEdit={beginCardEdit} onRemove={() => void removeCard(selectedCardIndex)} /></motion.div>}
         {pickerOpen && (
@@ -524,7 +568,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
           </motion.div>
         )}
       </AnimatePresence>
-        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => { window.location.assign('/') }} />}</AnimatePresence>
+        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => navigate('/', { skipGuard: true })} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>

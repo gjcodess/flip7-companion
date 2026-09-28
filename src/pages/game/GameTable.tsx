@@ -32,7 +32,7 @@ export function GameTable({ table, tableCardIds, isVoidedCard, score, flipSevenB
     <AnimatePresence>{submitting && <motion.div className="card-operation-status" initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .9 }} role="status"><LoaderCircle className="spin" size={16} /> Updating table…</motion.div>}</AnimatePresence>
     <div className="card-table">
       <AnimatePresence initial={false}>
-        <div className="card-rows">
+        <div className="card-rows" key="card-rows">
           {cardRows.map((row, rowIndex) => <div className={`card-row cards-${row.length}`} key={`card-row-${rowIndex}`}>
             <AnimatePresence initial={false}>
               {row.map((card, rowCardIndex) => {

@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
+import { Analytics } from '@vercel/analytics/react'
 import { supabase } from './lib/supabase'
 import { currentUser } from './lib/room'
 import { roomCodeFromPath } from './lib/app-utils'
+import { AppNavigationProvider, PageTransition, currentNavigableUrl, readAppLocation, runAppViewTransition, toNavigablePath, type AppLocation } from './lib/navigation'
 import { LandingScreen } from './pages/landing/LandingScreen'
 import { RulesScreen } from './pages/rules/RulesScreen'
 import { FAQScreen } from './pages/faq/FAQScreen'
@@ -12,37 +14,87 @@ import { ContactScreen } from './pages/contact/ContactScreen'
 import { AuthScreen } from './pages/auth/AuthScreen'
 import { HomeScreen } from './pages/home/HomeScreen'
 import { RoomScreen } from './pages/room/RoomScreen'
+import { DemoScreen } from './pages/game/DemoScreen'
+import { BankerScreen } from './pages/game/BankerScreen'
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
-  const isRulesPage = window.location.pathname === '/rules'
-  const isFAQPage = window.location.pathname === '/faq'
-  const isPrivacyPage = window.location.pathname === '/privacy'
-  const isTermsPage = window.location.pathname === '/terms'
-  const isContactPage = window.location.pathname === '/contact'
-  const [showLanding, setShowLanding] = useState(() => window.location.pathname === '/' || window.location.pathname === '/landing')
-  const [roomCode, setRoomCode] = useState(() => roomCodeFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get('room'))
+  const [location, setLocation] = useState<AppLocation>(() => {
+    const current = readAppLocation()
+    return { ...current, pathname: current.pathname === '/' ? '/landing' : current.pathname }
+  })
+  const navigate = useCallback((to: string, options?: { replace?: boolean; skipGuard?: boolean }) => {
+    const next = toNavigablePath(to)
+    if (next === currentNavigableUrl()) return
+    const currentPath = window.location.pathname
+    const nextPath = new URL(next, window.location.origin).pathname
+    runAppViewTransition(() => {
+      if (options?.replace) window.history.replaceState({}, '', next)
+      else window.history.pushState({}, '', next)
+      const current = readAppLocation()
+      setLocation({ ...current, pathname: current.pathname === '/' ? '/landing' : current.pathname })
+    }, { skip: currentPath === '/demo' || nextPath === '/demo' })
+  }, [])
   useEffect(() => {
+    if (window.location.pathname === '/') {
+      const next = toNavigablePath(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+      window.history.replaceState({}, '', next)
+    }
+  }, [])
+  const syncLocationFromHistory = useCallback(() => {
+    runAppViewTransition(() => {
+      const next = readAppLocation()
+      setLocation({ ...next, pathname: next.pathname === '/' ? '/landing' : next.pathname })
+    })
+  }, [])
+
+  const isRulesPage = location.pathname === '/rules'
+  const isFAQPage = location.pathname === '/faq'
+  const isPrivacyPage = location.pathname === '/privacy'
+  const isTermsPage = location.pathname === '/terms'
+  const isContactPage = location.pathname === '/contact'
+  const isDemoPage = location.pathname === '/demo'
+  const isBankerPage = location.pathname === '/banker'
+  const isLocalOnlyPage = isDemoPage || isBankerPage
+  const showLanding = location.pathname === '/landing'
+  const roomCode = roomCodeFromPath(location.pathname) || new URLSearchParams(location.search).get('room')
+  useEffect(() => {
+    if (isLocalOnlyPage) { setUser(null); return }
     if (!supabase) { setUser(null); return }
     void currentUser().then(setUser)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
     return () => subscription.unsubscribe()
-  }, [])
+  }, [isLocalOnlyPage])
   useEffect(() => {
-    if (showLanding && window.location.pathname === '/') window.history.replaceState({}, '', '/landing')
-    if (!showLanding && window.location.pathname === '/') window.history.replaceState({}, '', roomCode ? `/game/${roomCode}` : '/lobby')
-  }, [roomCode, showLanding])
-  const openRoom = (code: string) => { const next = code.toUpperCase(); window.history.replaceState({}, '', `/game/${next}`); setRoomCode(next) }
-  const leaveRoom = () => { window.history.replaceState({}, '', '/landing'); setRoomCode(null); setShowLanding(true) }
-  const enterApp = () => { sessionStorage.setItem('flip7-app-entered', '1'); window.history.replaceState({}, '', '/lobby'); setShowLanding(false) }
-  if (isRulesPage) return <RulesScreen />
-  if (isFAQPage) return <FAQScreen />
-  if (isPrivacyPage) return <LegalScreen kind="privacy" />
-  if (isTermsPage) return <LegalScreen kind="terms" />
-  if (isContactPage) return <ContactScreen />
-  if (!supabase) return <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
-  if (showLanding) return <LandingScreen onStart={enterApp} />
-  if (user === undefined) return <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>
-  if (!user) return <AuthScreen onAuthenticated={setUser} />
-  return roomCode ? <RoomScreen user={user} code={roomCode} leaveRoom={leaveRoom} /> : <HomeScreen user={user} openRoom={openRoom} />
+    const frame = window.requestAnimationFrame(() => {
+      if (location.hash) {
+        document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'auto' })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [location.pathname, location.search, location.hash])
+
+  const openRoom = (code: string) => { const next = code.toUpperCase(); navigate(`/game/${next}`) }
+  const enterApp = () => { sessionStorage.setItem('flip7-app-entered', '1'); navigate('/lobby', { replace: true }) }
+
+  let content: ReactNode
+  if (isRulesPage) content = <RulesScreen />
+  else if (isFAQPage) content = <FAQScreen />
+  else if (isPrivacyPage) content = <LegalScreen kind="privacy" />
+  else if (isTermsPage) content = <LegalScreen kind="terms" />
+  else if (isContactPage) content = <ContactScreen />
+  else if (isDemoPage) content = <DemoScreen />
+  else if (isBankerPage) content = <BankerScreen />
+  else if (!supabase) content = <div className="simple-state"><p>Supabase is not configured. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY values to .env.local.</p></div>
+  else if (showLanding) content = <LandingScreen onStart={enterApp} />
+  else if (user === undefined) content = <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>
+  else if (!user) content = <AuthScreen onAuthenticated={setUser} />
+  else content = roomCode ? <RoomScreen user={user} code={roomCode} /> : <HomeScreen user={user} openRoom={openRoom} />
+
+  const isLiveRoom = Boolean(roomCode)
+  return <AppNavigationProvider navigate={navigate} onPopState={syncLocationFromHistory}>
+    {isLiveRoom ? content : <PageTransition routeKey={`${location.pathname}${location.search}`}>{content}</PageTransition>}
+  </AppNavigationProvider>
 }

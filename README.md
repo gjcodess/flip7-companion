@@ -4,7 +4,7 @@
 
 <h1 align="center">Flip7 Companion</h1>
 
-<p align="center">A real-time companion app for playing <strong>Flip 7</strong> with a physical deck.</p>
+<p align="center">A real-time multiplayer and local one-device companion app for playing <strong>Flip 7</strong> with a physical deck.</p>
 
 <p align="center">
   <a href="#what-it-does">What it does</a> ·
@@ -30,10 +30,13 @@ The app includes:
 - Live round tracking, card selection, corrections, undo/redo, and card organization.
 - Authoritative, server-side score calculation and round settlement through Supabase RPCs.
 - Individual round-score history on the match results screen.
+- A public local demo mode for practicing card choices and scoring without signing in or saving data.
+- A local Banker Mode for one person to record cards for the whole table, switch between ordered player tables, target action cards, and manage the round without Supabase or realtime subscriptions.
+- Automatic Flip 7 settlement and a host-only round summary when every multiplayer player has finished the round.
 - A mobile-first layout, installable PWA metadata, and cached app assets for faster repeat loads.
 - Branded in-app warning dialogs in place of browser validation bubbles.
 
-> **Version 1 note:** account sign-in and sign-up are intentionally unavailable in the current UI while the app is tested with more players. The Account tab shows a “Coming soon” dialog. Guest sessions and shared rooms are the supported way to play today.
+> **Version 1 note:** account sign-in and sign-up are intentionally hidden while the app is tested with more players. Guest sessions and shared rooms are the supported online workflow today.
 
 ## Card gallery
 
@@ -51,8 +54,10 @@ These are the same card images used in the app from [`public/cards`](public/card
 ## What you need at the table
 
 - A physical Flip 7 deck.
-- One phone, tablet, or browser for each player, or one shared device to record the table.
+- One phone, tablet, or browser for each player in multiplayer, or one shared device running Banker Mode to record the whole table.
 - An internet connection for live multi-player rooms backed by Supabase.
+
+Demo Mode and Banker Mode work locally on the device and do not require an internet connection or save game data online.
 
 The host creates the room, shares its code, approves the players, and starts the match. Every player records the cards in front of them as the physical deck is played.
 
@@ -64,7 +69,21 @@ The host creates the room, shares its code, approves the players, and starts the
 4. Players enter the code and request a seat. The host approves each request.
 5. Once 3–18 players are approved, the host starts the match.
 6. During a round, record each physical card, choose **Hit** or **Stay / Bank**, and use the card controls to correct a mistake if needed.
-7. When every player is banked, frozen, or busted, settle the round and continue. The match ends after a settled round puts at least one player at the target score.
+7. When every player is banked, frozen, busted, or has completed Flip 7, the host sees the round summary and can continue. The match ends after a settled round puts at least one player at the target score.
+
+### Banker Mode
+
+1. Open **Banker Mode** from the local options on the entry screen.
+2. Add and order the players, then choose the target score.
+3. Start the banker table on one shared device.
+4. Select a player tab before recording a physical card. The banker can switch tables, add, edit, remove, organize, and undo cards using the same scoring rules as multiplayer.
+5. Second Chance, Freeze, and Flip Three can be assigned to any player. The banker can review the round summary and start the next round when everyone is settled.
+
+Banker Mode is intentionally temporary: its player names, cards, scores, and history stay in memory and are discarded when the table is exited or refreshed.
+
+### Demo Mode
+
+Demo Mode is a private practice table for exploring card choices and scoring. It does not use Supabase, record a room, or save anything online.
 
 ### Player and host roles
 
@@ -134,6 +153,8 @@ Seven unique Number cards immediately end the round for that player and award th
 | `/contact` | Contact page. The built-in contact form is coming soon; the page currently offers an email copy action. |
 | `/lobby` | Guest entry and room lobby. |
 | `/game/:ROOM_CODE` | Waiting room, active match, round review, and final results for a room. |
+| `/banker` | Local one-device Banker Mode. |
+| `/demo` | Local solo practice table. Choices stay in memory and are discarded when the demo is left or refreshed. |
 
 ## Technology
 
@@ -217,7 +238,7 @@ src/
 ├── game/                   # Card definitions and card-code mapping
 ├── lib/                    # Supabase client, room API, app utilities
 ├── pages/
-│   ├── auth/               # Guest entry and account-coming-soon dialog
+│   ├── auth/               # Guest entry and local mode entry points
 │   ├── contact/            # Contact page and copy-email action
 │   ├── faq/                # FAQ page
 │   ├── game/               # Live table, cards, controls, and dialogs
@@ -246,9 +267,10 @@ The browser client requests game changes through Supabase RPC functions. The dat
 - Banking, cancelling a bank, busting, freezing, and confirming results.
 - Applying the score order and Flip 7 bonus.
 - Finalizing rounds, maintaining totals, and recording final results.
+- Automatically settling a player after seven unique Number cards and opening round review when all results are confirmed.
 - Handling stale-host transfer and real-time table updates.
 
-Row Level Security policies protect room data, while Realtime keeps players’ browsers synchronized.
+Row Level Security policies protect room data, while Realtime keeps multiplayer players’ browsers synchronized. Banker Mode does not use these online services.
 
 ## PWA and caching
 
@@ -266,7 +288,7 @@ The service worker caches the application shell, logo, card artwork, and other s
 
 ## Current limitations
 
-- Email/password accounts are intentionally hidden behind a “Coming soon” message for version-one testing.
+- Email/password accounts are intentionally hidden from the entry screen for version-one testing.
 - The contact form itself is not built yet; the Contact page currently provides a copyable email address.
 - The app is a companion to the physical game and does not replace the deck or deal cards automatically.
 

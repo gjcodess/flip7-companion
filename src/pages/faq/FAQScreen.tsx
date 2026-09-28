@@ -61,6 +61,8 @@ export function FAQScreen() {
             <FAQItem question="Do I need the physical Flip 7 deck?">Yes. The app does not draw cards for you. Players flip from the physical deck and record each card in front of them.</FAQItem>
             <FAQItem question="How do I start a game?">Choose Start a table, enter your display name and target score, then share the room code with the other players.</FAQItem>
             <FAQItem question="How do players join?">A player enters the room code, chooses a display name, and waits for the host to approve them before the match begins.</FAQItem>
+            <FAQItem question="What is Banker Mode?">Banker Mode lets one person run the whole table from one device. The banker switches between player tables to record cards and actions, while keeping the player order and scores together locally.</FAQItem>
+            <FAQItem question="What is Demo Mode?">Demo Mode is a private practice table for trying the card flow and scoring by yourself. It does not create a room or save the session online.</FAQItem>
           </section>
 
           <section className="faq-panel faq-group faq-group-cream">
@@ -87,6 +89,7 @@ export function FAQScreen() {
             <FAQItem question="Who can start the next round?" open>The host can proceed once every player is banked, frozen, or busted. The next round starts after the current scores are settled.</FAQItem>
             <FAQItem question="Can I fix a recording mistake?">Yes. Use the card controls, edit or remove the incorrect card, or use Undo while the round is still being recorded.</FAQItem>
             <FAQItem question="Can I use the app on my phone?">Yes. Open the shared local or deployed address on your phone while connected to the same network or service as the host.</FAQItem>
+            <FAQItem question="Are Demo and Banker Mode connected to multiplayer?">No. Demo and Banker Mode run on the current device without realtime room synchronization. Use multiplayer mode when each player needs a separate device connected to the same shared room.</FAQItem>
             <FAQItem question="What happens when someone reaches 200 points?">The game ends after the round is settled. The player with the most total points wins.</FAQItem>
           </section>
         </div>
