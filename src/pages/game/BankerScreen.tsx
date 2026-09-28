@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowUp, CircleHelp, ClipboardList, LogOut, Menu, Play, RotateCcw, UserPlus, Users, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Card } from '../../game/cards'
 import { allBankerPlayersSettled, bankerInitialState, bankerPlayerDerived, bankerReducer, isBankerTerminal, type BankerPlayer } from '../../game/bankerGame'
 import { organizeDemoEntries } from '../../game/demoGame'
 import { pointLabel } from '../../lib/app-utils'
-import { useAppNavigation } from '../../lib/navigation'
+import { useAppNavigation, useNavigationGuard } from '../../lib/navigation'
+import { ConfirmationModal } from '../../components/ConfirmationModal'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
 import { GameControls } from './GameControls'
 import { GameTable } from './GameTable'
@@ -74,6 +75,8 @@ function BankerResults({ players, history, targetScore, onNewGame, onExit }: { p
 export function BankerScreen() {
   const navigate = useAppNavigation()
   const [state, dispatch] = useReducer(bankerReducer, undefined, bankerInitialState)
+  const [startDraft, setStartDraft] = useState<{ targetScore: number; names: string[] } | null>(null)
+  const [newGamePromptOpen, setNewGamePromptOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -95,18 +98,29 @@ export function BankerScreen() {
   const table = selectedPlayer?.round.entries.map((entry) => entry.card) ?? []
   const cardIds = selectedPlayer?.round.entries.map((entry) => entry.instanceId) ?? []
 
+  const exit = useCallback(() => navigate('/landing', { replace: true }), [navigate])
+  useNavigationGuard(state.phase !== 'setup' ? {
+    eyebrow: state.phase === 'results' ? 'LEAVE RESULTS' : 'LEAVE BANKER TABLE',
+    title: 'Leave this banker table?',
+    message: state.phase === 'results'
+      ? 'The final scores and round history only exist on this device and will be cleared when you leave.'
+      : 'This Banker table is stored only in memory. Leaving now discards the players, cards, scores, and round history.',
+    confirmLabel: 'Exit table',
+    cancelLabel: 'Stay here',
+    shouldBlock: () => true,
+  } : null)
+
   useEffect(() => {
     if (state.phase === 'round' && allSettled) setRoundSummaryOpen(true)
     if (!allSettled) setRoundSummaryOpen(false)
   }, [allSettled, state.phase])
 
-  if (state.phase === 'setup') return <div className="app-shell banker-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell"><header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={() => navigate('/landing')}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><button className="account-pill room-leave-button" onClick={() => navigate('/landing')}><LogOut size={15} /> Exit</button></header><BankerSetup onStart={(targetScore, names) => dispatch({ type: 'start', targetScore, names })} /></main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside></div>
+  if (state.phase === 'setup') return <div className="app-shell banker-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell"><header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={exit}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><button className="account-pill room-leave-button" onClick={exit}><LogOut size={15} /> Exit</button></header><BankerSetup onStart={(targetScore, names) => setStartDraft({ targetScore, names })} /></main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside>{startDraft && <ConfirmationModal eyebrow="START BANKER TABLE" title="Start this table?" message={`Start a local table for ${startDraft.names.length} players, targeting ${startDraft.targetScore} points? You can no longer edit the setup after starting.`} cancelLabel="Review setup" confirmLabel="Start table" onCancel={() => setStartDraft(null)} onConfirm={() => { const draft = startDraft; setStartDraft(null); dispatch({ type: 'start', targetScore: draft.targetScore, names: draft.names }) }} />}</div>
 
-  if (state.phase === 'results') return <div className="app-shell banker-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell"><header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={() => navigate('/landing')}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><span className="topbar-caption">BANKER MODE · LOCAL ONLY</span></header><BankerResults players={state.players} history={state.history} targetScore={state.targetScore} onNewGame={() => dispatch({ type: 'reset' })} onExit={() => navigate('/landing')} /></main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside></div>
+  if (state.phase === 'results') return <div className="app-shell banker-shell"><aside className="desktop-marquee left"><div>FLIP<br />7</div></aside><main className="game-shell"><header className="topbar banker-topbar"><button className="brand-button" aria-label="Exit banker mode" onClick={exit}><img className="brand-logo" src="/assets/flip7-title-logo.png" alt="Flip 7" /></button><span className="topbar-caption">BANKER MODE · LOCAL ONLY</span></header><BankerResults players={state.players} history={state.history} targetScore={state.targetScore} onNewGame={() => setNewGamePromptOpen(true)} onExit={exit} />{newGamePromptOpen && <ConfirmationModal eyebrow="NEW BANKER GAME" title="Start a new game?" message="This will clear the completed table, final scores, and round history from this device." cancelLabel="Keep results" confirmLabel="New game" onCancel={() => setNewGamePromptOpen(false)} onConfirm={() => { setNewGamePromptOpen(false); dispatch({ type: 'reset' }) }} />}</main><aside className="desktop-marquee right"><div>PRESS<br />YOUR<br />LUCK</div></aside></div>
 
-  const exit = () => navigate('/landing')
   const newRound = () => { dispatch({ type: 'advance-round' }); setRoundSummaryOpen(false); setOrganized(false) }
-  const resetForNewGame = () => dispatch({ type: 'reset' })
+  const resetForNewGame = () => setNewGamePromptOpen(true)
   const closePicker = () => { cardSelectionRef.current = false; setCardDialogClosing(true); setPickerOpen(false); setEditingIndex(null) }
   const selectCard = (card: Card) => {
     if (!selectedPlayer || cardSelectionRef.current) return
@@ -164,6 +178,7 @@ export function BankerScreen() {
       {pendingAction && <motion.div key="action-target" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closePendingAction}><motion.section className="card-picker" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }} transition={{ duration: .14, ease: 'easeOut' }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ACTION TARGET</span><h2>Who gets {pendingAction.label}?</h2></div><button className="close-button" aria-label="Close action target" title="Close" onClick={closePendingAction}><X size={19} /></button></div><p>Select the player who receives this action card. The card will be logged on that player’s local table.</p><div className="target-list banker-target-list">{state.players.map((player) => <button key={player.id} onClick={() => chooseActionTarget(player.id)}>{player.name}</button>)}</div></motion.section></motion.div>}
       {playersOpen && <motion.div key="players" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setPlayersOpen(false)}><motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>AT THIS TABLE</span><h2>Players</h2></div><div className="panel-heading-actions"><b className="panel-count">{state.players.length} players</b><button className="close-button" aria-label="Close players" title="Close" onClick={() => setPlayersOpen(false)}><X size={19} /></button></div></div><div className="info-list">{state.players.map((player) => { const playerScore = bankerPlayerDerived(player).score; return <div className={`info-player ${player.id === selectedPlayer?.id ? 'current-player' : ''}`} key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div><b>{player.name}{player.id === selectedPlayer?.id ? ' (current)' : ''}</b><small>{playerTabSummary(player)}</small></div><strong>{playerScore}</strong></div> })}</div></motion.section></motion.div>}
       {roundSummaryOpen && <motion.div key="round-summary" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }}><motion.section className="card-picker banker-summary" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>ROUND {String(state.roundNumber).padStart(2, '0')} COMPLETE</span><h2>Everyone is settled.</h2></div><button className="close-button" aria-label="Close round summary" onClick={() => setRoundSummaryOpen(false)}><X size={19} /></button></div><div className="banker-round-summary-list">{state.players.map((player) => <div className={`banker-summary-player ${statusClass(player)}`} key={player.id}><span className="mini-avatar" style={{ background: player.color }}>{player.name[0]}</span><div className="banker-summary-player-copy"><b>{player.name}</b><span className={`banker-status-pill ${statusClass(player)}`}>{statusLabel(player)}</span></div><div className="banker-summary-score"><small>ROUND</small><strong>{bankerPlayerDerived(player).score}</strong></div></div>)}</div><p>Confirm the local scores, then rotate the dealer and start the next round.</p><div className="banker-results-actions"><button className="secondary-action" onClick={resetForNewGame}><RotateCcw size={16} /> New game</button><button className="primary-wide" onClick={newRound}><Play size={16} /> Next round</button></div></motion.section></motion.div>}
+      {newGamePromptOpen && <ConfirmationModal eyebrow="NEW BANKER GAME" title="Start a new game?" message="This will clear the current players, cards, scores, and round history from this device." cancelLabel="Keep table" confirmLabel="New game" onCancel={() => setNewGamePromptOpen(false)} onConfirm={() => { setNewGamePromptOpen(false); setRoundSummaryOpen(false); dispatch({ type: 'reset' }) }} />}
       {rulesOpen && <motion.div key="rules" className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setRulesOpen(false)}><motion.section className="card-picker info-panel" initial={{ y: 50 }} animate={{ y: 0 }} onClick={(event) => event.stopPropagation()}><div className="picker-heading"><div><span>BANKER MODE</span><h2>How it works</h2></div><button className="close-button" aria-label="Close rules" onClick={() => setRulesOpen(false)}><X size={19} /></button></div><div className="rules-copy"><section><h3>Select a player</h3><p>Use the ordered player tabs to switch tables. The selected player receives the next card you log.</p></section><section><h3>Log the physical deck</h3><p>Choose cards as they appear. Number duplicates bust that player unless they have a Second Chance. Freeze and Flip Three follow the same rules as a live table.</p></section><section><h3>Settle the round</h3><p>When every player has banked, frozen, busted, or flipped seven, review the local scores and continue to the next round.</p></section></div></motion.section></motion.div>}
     </AnimatePresence>
   </div>

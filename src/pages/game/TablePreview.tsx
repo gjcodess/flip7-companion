@@ -568,7 +568,7 @@ export function TablePreview({ roomCode = 'SPARK-7', targetScore = 200, hostName
           </motion.div>
         )}
       </AnimatePresence>
-        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => navigate('/')} />}</AnimatePresence>
+        <AnimatePresence>{showHomePrompt && <HomePrompt onCancel={() => setShowHomePrompt(false)} onConfirm={() => navigate('/', { skipGuard: true })} />}</AnimatePresence>
         <AnimatePresence>
           {openPanel && <motion.div className="picker-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={() => setOpenPanel(null)}>
             <motion.section className="card-picker info-panel" initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} onClick={(event) => event.stopPropagation()}>
