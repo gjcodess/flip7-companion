@@ -42,10 +42,15 @@
 .banker-local-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 17px 20px 0; color: #4d5c79; font-size: 11px; font-weight: 700; text-align: center; }
 .banker-round-heading { padding-block: 18px 15px; }
 .banker-round-heading h1 { font-size: clamp(26px, 7vw, 37px); }
-.banker-player-strip { display: flex; flex-wrap: nowrap; gap: 8px; padding: 13px 13px 15px; background: #f8edc7; border-bottom: 2px solid #dacb9f; overflow-x: auto; scrollbar-width: none; }
+.banker-player-strip { display: flex; flex-wrap: nowrap; gap: 8px; padding: 13px 13px 15px; background: #f8edc7; border-bottom: 2px solid #dacb9f; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
+.banker-turn-callout { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 14px; border-bottom: 2px solid #132d67; background: #ffe05c; color: #132d67; }
+.banker-turn-callout > span { font-size: 9px; font-weight: 1000; letter-spacing: .1em; }
+.banker-turn-callout > b { font-size: 15px; }
+.banker-turn-callout > small { margin-left: auto; color: #4d5c79; font-size: 10px; font-weight: 800; }
 .banker-player-strip::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .banker-player-tab { position: relative; flex: 0 0 125px; min-width: 125px; padding: 8px 8px 11px; display: grid; grid-template-columns: 28px 1fr; gap: 6px; border: 2px solid #132d67; border-radius: 0; background: #fffdf5; color: #132d67; box-shadow: 2px 2px 0 #132d67; text-align: left; cursor: pointer; }
 .banker-player-tab.selected { background: #ffe05c; box-shadow: 3px 3px 0 #132d67; transform: translate(-1px, -1px); }
+.banker-player-tab.turn:not(.selected) { outline: 3px solid #ed4f7e; outline-offset: -5px; }
 .banker-player-tab.busted { border-color: #c32950; box-shadow: 2px 2px 0 #c32950; background: #ffe4e7; }
 .banker-player-tab.frozen { border-color: #2b7897; box-shadow: 2px 2px 0 #2b7897; background: #dff3f8; }
 .banker-player-tab.stayed { border-color: #4d8a45; box-shadow: 2px 2px 0 #4d8a45; background: #eef6d9; }
