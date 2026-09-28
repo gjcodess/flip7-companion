@@ -22,6 +22,7 @@ export type DemoState = DemoSnapshot & {
 
 export type DemoAction =
   | { type: 'add'; card: Card }
+  | { type: 'consume-flip-three' }
   | { type: 'replace'; index: number; card: Card }
   | { type: 'remove'; index: number }
   | { type: 'reorder'; entries: DemoEntry[] }
@@ -152,6 +153,10 @@ function rebuild(entries: DemoEntry[], nextId: number) {
 
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   if (action.type === 'reset') return demoInitialState()
+  if (action.type === 'consume-flip-three') {
+    if (state.status !== 'active' || state.flipThreeRemaining <= 0) return state
+    return commit(state, { ...snapshot(state), flipThreeRemaining: state.flipThreeRemaining - 1 })
+  }
   if (action.type === 'undo') {
     const previous = state.past[state.past.length - 1]
     return previous ? { ...previous, past: state.past.slice(0, -1), future: [snapshot(state), ...state.future] } : state

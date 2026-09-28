@@ -14,6 +14,7 @@ type GameTableProps = {
   submitting: boolean
   interactionLocked: boolean
   canEditCards: boolean | undefined
+  canAddCards?: boolean
   confirmedAt: string | null | undefined
   isStaying: boolean
   isOrganized: boolean
@@ -24,7 +25,7 @@ type GameTableProps = {
   onSelectCard: (index: number, card: Card) => void
 }
 
-export function GameTable({ table, tableCardIds, isVoidedCard, score, flipSevenBonus, busted, frozen, submitting, interactionLocked, canEditCards, confirmedAt, isStaying, isOrganized, playerName, isHost, onOrganize, onOpenPicker, onSelectCard }: GameTableProps) {
+export function GameTable({ table, tableCardIds, isVoidedCard, score, flipSevenBonus, busted, frozen, submitting, interactionLocked, canEditCards, canAddCards = true, confirmedAt, isStaying, isOrganized, playerName, isHost, onOrganize, onOpenPicker, onSelectCard }: GameTableProps) {
   const cardRows = Array.from({ length: Math.ceil(table.length / 5) }, (_, rowIndex) => table.slice(rowIndex * 5, rowIndex * 5 + 5))
   return <section className="table-area">
     <div className="section-kicker">{isHost && <Crown size={16} aria-label="Lobby host" />} {playerName.toUpperCase()}'S TABLE <button className="organize-button" onClick={onOrganize} disabled={table.length < 2 || submitting || interactionLocked} title={isOrganized ? 'Restore original card order' : 'Organize cards'}><ListOrdered size={14} /> {isOrganized ? 'Original' : 'Organize'}</button></div>
@@ -53,7 +54,7 @@ export function GameTable({ table, tableCardIds, isVoidedCard, score, flipSevenB
             </AnimatePresence>
           </div>)}
         </div>
-        {!confirmedAt && !isStaying && !busted && !frozen && <button className="add-card-card" disabled={submitting || interactionLocked || !canEditCards} onClick={() => { if (submitting || interactionLocked || !canEditCards) return; onOpenPicker() }} aria-label="Record a physical card"><Plus size={30} /></button>}
+        {!confirmedAt && !isStaying && !busted && !frozen && <button className="add-card-card" disabled={submitting || interactionLocked || !canEditCards || !canAddCards} onClick={() => { if (submitting || interactionLocked || !canEditCards || !canAddCards) return; onOpenPicker() }} aria-label="Record a physical card"><Plus size={30} /></button>}
       </AnimatePresence>
     </div>
   </section>
