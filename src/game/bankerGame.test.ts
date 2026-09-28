@@ -48,6 +48,27 @@ describe('Banker turn progression', () => {
     expect(state.turnPlayerId).toBe(turnBeforeView)
   })
 
+  it('restores the turn cursor when undoing and redoing a card', () => {
+    let state = record(start(), 'banker-player-1', numberCard(1))
+    expect(state.turnPlayerId).toBe('banker-player-2')
+    state = bankerReducer(state, { type: 'undo' })
+    expect(state.turnPlayerId).toBe('banker-player-1')
+    expect(state.players[0].round.entries).toHaveLength(0)
+    state = bankerReducer(state, { type: 'redo' })
+    expect(state.turnPlayerId).toBe('banker-player-2')
+    expect(state.players[0].round.entries.map((entry) => entry.card.id)).toEqual(['number-1'])
+  })
+
+  it('restores the full Flip Three queue when undoing and redoing its assignment', () => {
+    let state = action(start(), 'banker-player-1', 'banker-player-2', flipThree())
+    expect(state.forcedTurns[0]?.targetPlayerId).toBe('banker-player-2')
+    state = bankerReducer(state, { type: 'undo' })
+    expect(state.forcedTurns).toHaveLength(0)
+    expect(state.turnPlayerId).toBe('banker-player-1')
+    state = bankerReducer(state, { type: 'redo' })
+    expect(state.forcedTurns[0]).toMatchObject({ targetPlayerId: 'banker-player-2', remaining: 3 })
+  })
+
   it('rejects action cards targeted at terminal tables', () => {
     let state = start()
     state = bankerReducer(state, { type: 'player', playerId: 'banker-player-2', action: { type: 'add', card: numberCard(2) } })

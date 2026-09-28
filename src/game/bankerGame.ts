@@ -22,6 +22,14 @@ export type BankerForcedTurn = {
   resumeAfterPlayerId: string
 }
 
+export type BankerSnapshot = {
+  selectedPlayerId: string | null
+  turnPlayerId: string | null
+  roundFinisherId: string | null
+  forcedTurns: BankerForcedTurn[]
+  players: BankerPlayer[]
+}
+
 export type BankerState = {
   phase: 'setup' | 'round' | 'results'
   targetScore: number
@@ -35,6 +43,8 @@ export type BankerState = {
   players: BankerPlayer[]
   history: BankerRoundResult[]
   winnerIds: string[]
+  past: BankerSnapshot[]
+  future: BankerSnapshot[]
 }
 
 export type BankerAction =
@@ -48,6 +58,8 @@ export type BankerAction =
   | { type: 'record-action'; sourcePlayerId: string; targetPlayerId: string; card: Card }
   /** Banks the current turn player and advances normal play. */
   | { type: 'settle-player'; playerId: string }
+  | { type: 'undo' }
+  | { type: 'redo' }
   | { type: 'move-player'; playerId: string; direction: -1 | 1 }
   | { type: 'advance-round' }
   | { type: 'reset' }
@@ -56,6 +68,7 @@ export const bankerInitialState = (): BankerState => ({
   phase: 'setup', targetScore: 200, roundNumber: 1, dealerId: null,
   selectedPlayerId: null, turnPlayerId: null, roundFinisherId: null, forcedTurns: [],
   players: [], history: [], winnerIds: [],
+  past: [], future: [],
 })
 
 export function bankerPlayerDerived(player: BankerPlayer) { return demoDerived(player.round) }
@@ -82,6 +95,26 @@ function currentTurnId(state: BankerState) { return state.forcedTurns[0]?.target
 
 function replacePlayerRound(players: BankerPlayer[], playerId: string, round: DemoState) {
   return players.map((player) => player.id === playerId ? { ...player, round } : player)
+}
+
+function bankerSnapshot(state: BankerState): BankerSnapshot {
+  return { selectedPlayerId: state.selectedPlayerId, turnPlayerId: state.turnPlayerId, roundFinisherId: state.roundFinisherId, forcedTurns: state.forcedTurns, players: state.players }
+}
+
+function commitBankerState(previous: BankerState, next: BankerState): BankerState {
+  return { ...next, past: [...previous.past, bankerSnapshot(previous)], future: [] }
+}
+
+function undoBankerState(state: BankerState): BankerState {
+  const previous = state.past[state.past.length - 1]
+  if (!previous) return state
+  return { ...state, ...previous, past: state.past.slice(0, -1), future: [bankerSnapshot(state), ...state.future] }
+}
+
+function redoBankerState(state: BankerState): BankerState {
+  const next = state.future[0]
+  if (!next) return state
+  return { ...state, ...next, past: [...state.past, bankerSnapshot(state)], future: state.future.slice(1) }
 }
 
 function forceBankActivePlayers(players: BankerPlayer[], preservePlayerId: string) {
@@ -119,11 +152,13 @@ function validActiveTarget(state: BankerState, playerId: string) {
 
 export function bankerReducer(state: BankerState, action: BankerAction): BankerState {
   if (action.type === 'reset') return bankerInitialState()
+  if (action.type === 'undo') return undoBankerState(state)
+  if (action.type === 'redo') return redoBankerState(state)
 
   if (action.type === 'start') {
     const players = createPlayers(action.names)
     const firstPlayerId = players[0]?.id ?? null
-    return { phase: 'round', targetScore: action.targetScore, roundNumber: 1, dealerId: firstPlayerId, selectedPlayerId: firstPlayerId, turnPlayerId: firstPlayerId, roundFinisherId: null, forcedTurns: [], players, history: [], winnerIds: [] }
+    return { phase: 'round', targetScore: action.targetScore, roundNumber: 1, dealerId: firstPlayerId, selectedPlayerId: firstPlayerId, turnPlayerId: firstPlayerId, roundFinisherId: null, forcedTurns: [], players, history: [], winnerIds: [], past: [], future: [] }
   }
 
   if (action.type === 'select-player') {
@@ -141,15 +176,17 @@ export function bankerReducer(state: BankerState, action: BankerAction): BankerS
 
   if (action.type === 'player') {
     if (state.phase !== 'round') return state
+    if (action.action.type === 'undo') return undoBankerState(state)
+    if (action.action.type === 'redo') return redoBankerState(state)
     const player = state.players.find((candidate) => candidate.id === action.playerId)
     if (!player) return state
     const nextRound = demoReducer(player.round, action.action)
     if (nextRound === player.round) return state
     const players = replacePlayerRound(state.players, player.id, nextRound)
-    if (state.forcedTurns.length === 0) return { ...state, players }
+    if (state.forcedTurns.length === 0) return commitBankerState(state, { ...state, players })
     const normalized = normalizeForcedTurns(state, players, state.forcedTurns)
     const forcedTargetRemainsValid = normalized.forcedTurns[0]?.targetPlayerId === state.forcedTurns[0]?.targetPlayerId
-    return { ...state, ...normalized, selectedPlayerId: forcedTargetRemainsValid ? state.selectedPlayerId : normalized.turnPlayerId }
+    return commitBankerState(state, { ...state, ...normalized, selectedPlayerId: forcedTargetRemainsValid ? state.selectedPlayerId : normalized.turnPlayerId })
   }
 
   if (action.type === 'record-card') {
@@ -160,7 +197,7 @@ export function bankerReducer(state: BankerState, action: BankerAction): BankerS
     if (nextRound === player.round) return state
     const players = replacePlayerRound(state.players, player.id, nextRound)
     const forcedTurns = state.forcedTurns.length > 0 ? [{ ...state.forcedTurns[0], remaining: state.forcedTurns[0].remaining - 1 }, ...state.forcedTurns.slice(1)] : state.forcedTurns
-    return completeCardTurn({ ...state, players }, players, player.id, forcedTurns)
+    return commitBankerState(state, completeCardTurn({ ...state, players }, players, player.id, forcedTurns))
   }
 
   if (action.type === 'record-action') {
@@ -185,7 +222,7 @@ export function bankerReducer(state: BankerState, action: BankerAction): BankerS
     }
     const nextState = { ...state, players, roundFinisherId: target.id }
     const completed = completeCardTurn(nextState, players, action.sourcePlayerId, forcedTurns)
-    return { ...completed, roundFinisherId: target.id }
+    return commitBankerState(state, { ...completed, roundFinisherId: target.id })
   }
 
   if (action.type === 'settle-player') {
@@ -196,7 +233,7 @@ export function bankerReducer(state: BankerState, action: BankerAction): BankerS
     if (nextRound === player.round) return state
     const players = replacePlayerRound(state.players, player.id, nextRound)
     const nextPlayerId = nextActivePlayerId(players, player.id)
-    return { ...state, players, turnPlayerId: nextPlayerId, selectedPlayerId: nextPlayerId, roundFinisherId: player.id }
+    return commitBankerState(state, { ...state, players, turnPlayerId: nextPlayerId, selectedPlayerId: nextPlayerId, roundFinisherId: player.id })
   }
 
   if (action.type === 'advance-round') {
@@ -207,11 +244,11 @@ export function bankerReducer(state: BankerState, action: BankerAction): BankerS
     const reachedTarget = players.some((player) => player.totalScore >= state.targetScore)
     if (reachedTarget) {
       const highestScore = Math.max(...players.map((player) => player.totalScore))
-      return { ...state, phase: 'results', players, history, winnerIds: players.filter((player) => player.totalScore === highestScore).map((player) => player.id), forcedTurns: [] }
+      return { ...state, phase: 'results', players, history, winnerIds: players.filter((player) => player.totalScore === highestScore).map((player) => player.id), forcedTurns: [], past: [], future: [] }
     }
     const starterId = state.roundFinisherId && players.some((player) => player.id === state.roundFinisherId) ? state.roundFinisherId : players[0]?.id ?? null
     const nextPlayers = players.map((player) => ({ ...player, round: demoInitialState() }))
-    return { ...state, players: nextPlayers, history, roundNumber: state.roundNumber + 1, dealerId: starterId, turnPlayerId: starterId, roundFinisherId: null, forcedTurns: [], selectedPlayerId: starterId }
+    return { ...state, players: nextPlayers, history, roundNumber: state.roundNumber + 1, dealerId: starterId, turnPlayerId: starterId, roundFinisherId: null, forcedTurns: [], selectedPlayerId: starterId, past: [], future: [] }
   }
 
   return state
