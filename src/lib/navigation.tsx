@@ -68,6 +68,7 @@ type PendingNavigation = {
 export function AppNavigationProvider({ navigate, onPopState, children }: { navigate: AppNavigationContextValue['navigate']; onPopState: () => void; children: ReactNode }) {
   const guardRef = useRef<NavigationGuard | null>(null)
   const currentUrlRef = useRef(currentNavigableUrl())
+  const restoringHistoryRef = useRef(false)
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null)
   const [confirming, setConfirming] = useState(false)
 
@@ -108,10 +109,16 @@ export function AppNavigationProvider({ navigate, onPopState, children }: { navi
         window.history.replaceState({}, '', normalized)
       }
       const targetUrl = currentNavigableUrl()
+      if (restoringHistoryRef.current) {
+        restoringHistoryRef.current = false
+        currentUrlRef.current = targetUrl
+        return
+      }
       const guard = guardRef.current
       if (targetUrl !== currentUrlRef.current && guard?.shouldBlock(targetUrl)) {
-        window.history.pushState({}, '', currentUrlRef.current)
         setPendingNavigation({ to: targetUrl, options: { replace: true }, guard })
+        restoringHistoryRef.current = true
+        window.history.forward()
         return
       }
       currentUrlRef.current = targetUrl
