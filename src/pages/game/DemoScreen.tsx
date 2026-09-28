@@ -7,7 +7,7 @@ import { pointLabel } from '../../lib/app-utils'
 import { CardActionsPanel, CardPickerPanel } from './CardDialogs'
 import { GameControls } from './GameControls'
 import { GameTable } from './GameTable'
-import { useAppNavigation } from '../../lib/navigation'
+import { useAppNavigation, useNavigationGuard } from '../../lib/navigation'
 
 const terminalStatuses: DemoStatus[] = ['stayed', 'frozen', 'busted', 'flip-seven']
 
@@ -27,11 +27,20 @@ export function DemoScreen() {
   const table = state.entries.map((entry) => entry.card)
   const cardIds = state.entries.map((entry) => entry.instanceId)
 
+  useNavigationGuard(state.entries.length > 0 || terminal ? {
+    eyebrow: 'LEAVE DEMO',
+    title: 'Leave this practice table?',
+    message: 'Your demo cards and round score only exist in memory and will be cleared if you leave.',
+    confirmLabel: 'Exit demo',
+    cancelLabel: 'Stay here',
+    shouldBlock: () => true,
+  } : null)
+
   useEffect(() => {
     if (terminal) setSummaryOpen(true)
   }, [terminal])
 
-  const exit = () => navigate('/landing')
+  const exit = () => navigate('/landing', { replace: true })
   const newRound = () => {
     dispatch({ type: 'reset' })
     setPickerOpen(false)

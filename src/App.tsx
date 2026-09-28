@@ -23,7 +23,7 @@ export default function App() {
     const current = readAppLocation()
     return { ...current, pathname: current.pathname === '/' ? '/landing' : current.pathname }
   })
-  const navigate = useCallback((to: string, options?: { replace?: boolean }) => {
+  const navigate = useCallback((to: string, options?: { replace?: boolean; skipGuard?: boolean }) => {
     const next = toNavigablePath(to)
     if (next === currentNavigableUrl()) return
     const currentPath = window.location.pathname
@@ -36,23 +36,16 @@ export default function App() {
     }, { skip: currentPath === '/demo' || nextPath === '/demo' })
   }, [])
   useEffect(() => {
-    const onPopState = () => {
-      const current = readAppLocation()
-      if (current.pathname === '/') {
-        const next = toNavigablePath(`${current.pathname}${current.search}${current.hash}`)
-        window.history.replaceState({}, '', next)
-      }
-      runAppViewTransition(() => {
-        const next = readAppLocation()
-        setLocation({ ...next, pathname: next.pathname === '/' ? '/landing' : next.pathname })
-      })
-    }
-    window.addEventListener('popstate', onPopState)
     if (window.location.pathname === '/') {
       const next = toNavigablePath(`${window.location.pathname}${window.location.search}${window.location.hash}`)
       window.history.replaceState({}, '', next)
     }
-    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+  const syncLocationFromHistory = useCallback(() => {
+    runAppViewTransition(() => {
+      const next = readAppLocation()
+      setLocation({ ...next, pathname: next.pathname === '/' ? '/landing' : next.pathname })
+    })
   }, [])
 
   const isRulesPage = location.pathname === '/rules'
@@ -83,8 +76,7 @@ export default function App() {
     return () => window.cancelAnimationFrame(frame)
   }, [location.pathname, location.search, location.hash])
 
-  const openRoom = (code: string) => { const next = code.toUpperCase(); navigate(`/game/${next}`, { replace: true }) }
-  const leaveRoom = () => navigate('/landing', { replace: true })
+  const openRoom = (code: string) => { const next = code.toUpperCase(); navigate(`/game/${next}`) }
   const enterApp = () => { sessionStorage.setItem('flip7-app-entered', '1'); navigate('/lobby', { replace: true }) }
 
   let content: ReactNode
@@ -99,10 +91,10 @@ export default function App() {
   else if (showLanding) content = <LandingScreen onStart={enterApp} />
   else if (user === undefined) content = <div className="simple-state"><LoaderCircle className="spin" /><p>Opening the table…</p></div>
   else if (!user) content = <AuthScreen onAuthenticated={setUser} />
-  else content = roomCode ? <RoomScreen user={user} code={roomCode} leaveRoom={leaveRoom} /> : <HomeScreen user={user} openRoom={openRoom} />
+  else content = roomCode ? <RoomScreen user={user} code={roomCode} /> : <HomeScreen user={user} openRoom={openRoom} />
 
   const isLiveRoom = Boolean(roomCode)
-  return <AppNavigationProvider navigate={navigate}>
+  return <AppNavigationProvider navigate={navigate} onPopState={syncLocationFromHistory}>
     {isLiveRoom ? content : <PageTransition routeKey={`${location.pathname}${location.search}`}>{content}</PageTransition>}
   </AppNavigationProvider>
 }
