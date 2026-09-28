@@ -10,15 +10,20 @@ import { FieldWarningModal } from '../../components/FieldWarningModal'
 
 export function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: string) => void }) {
   const name = String(user.user_metadata.display_name || 'Player')
-  const [target, setTarget] = useState(200)
+  const [target, setTarget] = useState<number | ''>(200)
   const [joinCode, setJoinCode] = useState('')
   const [homeMode, setHomeMode] = useState<'join' | 'host'>('join')
   const [busy, setBusy] = useState<'create' | 'join' | null>(null)
   const [warning, setWarning] = useState<{ title: string; message: string } | null>(null)
+  const validTarget = typeof target === 'number' && Number.isInteger(target) && target >= 50 && target <= 500
 
   const create = async () => {
     if (!name.trim()) {
       setWarning({ title: 'Display name required.', message: 'Enter a display name before you create a room.' })
+      return
+    }
+    if (!validTarget) {
+      setWarning({ title: 'Target score required.', message: 'Choose a target score between 50 and 500 points.' })
       return
     }
     setBusy('create')
@@ -42,7 +47,7 @@ export function HomeScreen({ user, openRoom }: { user: User; openRoom: (code: st
     <section className="auth-hero compact"><span className="eyebrow">WELCOME TO THE TABLE</span><h1>Ready when the deck is.</h1><p>Create a room for your group, or enter a code from the host.</p></section>
     <section className="home-mode-switch" aria-label="Choose how to enter a game"><button className={homeMode === 'join' ? 'selected' : ''} onClick={() => setHomeMode('join')}><Users size={16} /> Join a game</button><button className={homeMode === 'host' ? 'selected' : ''} onClick={() => setHomeMode('host')}><Play size={16} /> Host a game</button></section>
     <section className="lobby-grid">
-      {homeMode === 'join' ? <JoinGameForm name={name} joinCode={joinCode} setJoinCode={setJoinCode} busy={busy} onJoin={join} /> : <HostGameForm name={name} target={target} setTarget={setTarget} busy={busy} onCreate={create} />}
+      {homeMode === 'join' ? <JoinGameForm name={name} joinCode={joinCode} setJoinCode={setJoinCode} busy={busy} onJoin={join} /> : <HostGameForm name={name} target={target} setTarget={setTarget} busy={busy} canSubmit={validTarget} onCreate={create} />}
     </section>
     <AnimatePresence>{warning && <FieldWarningModal title={warning.title} message={warning.message} onClose={() => setWarning(null)} />}</AnimatePresence>
   </main><aside className="desktop-marquee right"><div>PLAY<br />TO<br />WIN</div></aside></div>
