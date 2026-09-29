@@ -65,7 +65,7 @@ type PendingNavigation = {
   guard: NavigationGuard
 }
 
-export function AppNavigationProvider({ navigate, onPopState, children }: { navigate: AppNavigationContextValue['navigate']; onPopState: () => void; children: ReactNode }) {
+export function AppNavigationProvider({ navigate, onPopState, children }: { navigate: AppNavigationContextValue['navigate']; onPopState: (fromPath?: string) => void; children: ReactNode }) {
   const guardRef = useRef<NavigationGuard | null>(null)
   const currentUrlRef = useRef(currentNavigableUrl())
   const restoringHistoryRef = useRef(false)
@@ -121,8 +121,9 @@ export function AppNavigationProvider({ navigate, onPopState, children }: { navi
         window.history.forward()
         return
       }
+      const previousPath = new URL(currentUrlRef.current, window.location.origin).pathname
       currentUrlRef.current = targetUrl
-      onPopState()
+      onPopState(previousPath)
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
