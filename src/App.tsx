@@ -17,6 +17,12 @@ import { RoomScreen } from './pages/room/RoomScreen'
 import { DemoScreen } from './pages/game/DemoScreen'
 import { BankerScreen } from './pages/game/BankerScreen'
 
+const viewTransitionPaths = new Set(['/landing', '/rules', '/faq', '/privacy', '/terms', '/contact'])
+
+function shouldSkipViewTransition(fromPath: string, toPath: string) {
+  return fromPath === '/demo' || toPath === '/demo' || !viewTransitionPaths.has(fromPath) || !viewTransitionPaths.has(toPath)
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
   const [location, setLocation] = useState<AppLocation>(() => {
@@ -33,7 +39,7 @@ export default function App() {
       else window.history.pushState({}, '', next)
       const current = readAppLocation()
       setLocation({ ...current, pathname: current.pathname === '/' ? '/landing' : current.pathname })
-    }, { skip: currentPath === '/demo' || nextPath === '/demo' })
+    }, { skip: shouldSkipViewTransition(currentPath === '/' ? '/landing' : currentPath, nextPath) })
   }, [])
   useEffect(() => {
     if (window.location.pathname === '/') {
@@ -41,11 +47,12 @@ export default function App() {
       window.history.replaceState({}, '', next)
     }
   }, [])
-  const syncLocationFromHistory = useCallback(() => {
+  const syncLocationFromHistory = useCallback((fromPath = '/landing') => {
+    const nextPath = window.location.pathname === '/' ? '/landing' : window.location.pathname
     runAppViewTransition(() => {
       const next = readAppLocation()
       setLocation({ ...next, pathname: next.pathname === '/' ? '/landing' : next.pathname })
-    })
+    }, { skip: shouldSkipViewTransition(fromPath, nextPath) })
   }, [])
 
   const isRulesPage = location.pathname === '/rules'
